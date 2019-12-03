@@ -18,81 +18,102 @@
         length (subs segment 1)]
     [(get directions direction) (Integer/parseInt length)]))
 
-(defn bump-position [grid x y]
-  (println "Bumping position" x y)
-  (update grid [x y] (fnil inc 0)))
+(defn set-steps [grid x y wire-id steps]
+  (println "Setting steps at" x y "to" steps "for" wire-id)
+  (if-not (get-in grid [[x y] wire-id])
+    (assoc-in grid [[x y] wire-id] steps)
+    ;; it was already set, ignore it
+    grid))
 
 (defmulti map-segment
   (fn [context segment]
     (first segment)))
 
-(defmethod map-segment :down [{:keys [grid position] :as context} [_ length]]
-  (println "Mapping segment down" length "starting at" position)
+(defmethod map-segment :down
+  [{:keys [grid position steps wire-id] :as context} [_ length]]
+  (println "Mapping segment down" length "starting at" position "with" steps "steps")
   (-> context
-      (assoc :grid (reduce #(bump-position %1
-                                           (first position)
-                                           (+ (second position)
-                                              (* %2 -1)))
+      (assoc :grid (reduce #(set-steps %1
+                                       (first position)
+                                       (+ (second position)
+                                          (* %2 -1))
+                                       wire-id
+                                       (+ steps %2))
                            grid
                            (range 1 (inc length))))
-      (update-in [:position 1] + (* length -1))))
+      (update-in [:position 1] + (* length -1))
+      (assoc :steps (+ steps length))))
 
-(defmethod map-segment :left [{:keys [grid position] :as context} [_ length]]
-  (println "Mapping segment left" length "starting at" position)
+(defmethod map-segment :left
+  [{:keys [grid position steps wire-id] :as context} [_ length]]
+  (println "Mapping segment left" length "starting at" position "with" steps "steps")
   (-> context
-      (assoc :grid (reduce #(bump-position %1
-                                           (+ (first position)
-                                              (* %2 -1))
-                                           (second position))
+      (assoc :grid (reduce #(set-steps %1
+                                       (+ (first position)
+                                          (* %2 -1))
+                                       (second position)
+                                       wire-id
+                                       (+ steps %2))
                            grid
                            (range 1 (inc length))))
-      (update-in [:position 0] + (* length -1))))
+      (update-in [:position 0] + (* length -1))
+      (assoc :steps (+ steps length))))
 
-(defmethod map-segment :right [{:keys [grid position] :as context} [_ length]]
-  (println "Mapping segment right" length "starting at" position)
+(defmethod map-segment :right
+  [{:keys [grid position steps wire-id] :as context} [_ length]]
+  (println "Mapping segment right" length "starting at" position "with" steps "steps")
   (-> context
-      (assoc :grid (reduce #(bump-position %1
-                                           (+ (first position) %2)
-                                           (second position))
+      (assoc :grid (reduce #(set-steps %1
+                                       (+ (first position) %2)
+                                       (second position)
+                                       wire-id
+                                       (+ steps %2))
                            grid
                            (range 1 (inc length))))
-      (update-in [:position 0] + length)))
+      (update-in [:position 0] + length)
+      (assoc :steps (+ steps length))))
 
-(defmethod map-segment :up [{:keys [grid position] :as context} [_ length]]
-  (println "Mapping segment up" length "starting at" position)
+(defmethod map-segment :up
+  [{:keys [grid position steps wire-id] :as context} [_ length]]
+  (println "Mapping segment up" length "starting at" position "with" steps "steps")
   (-> context
-      (assoc :grid (reduce #(bump-position %1
-                                           (first position)
-                                           (+ (second position) %2))
+      (assoc :grid (reduce #(set-steps %1
+                                       (first position)
+                                       (+ (second position) %2)
+                                       wire-id
+                                       (+ steps %2))
                            grid
                            (range 1 (inc length))))
-      (update-in [:position 1] + length)))
+      (update-in [:position 1] + length)
+      (assoc :steps (+ steps length))))
 
 
-(defn map-path [grid path]
+(defn map-path [grid wire-id path]
   (let [init-context {:grid grid
-                      :position [0, 0]}]
+                      :position [0, 0]
+                      :steps 0
+                      :wire-id wire-id}]
     (->> (str/split path #",")
          (map parse-segment)
          (reduce map-segment init-context)
          :grid)))
 
 (defn intersection? [[coords wires]]
-  (> wires 1))
+  (> (count wires) 1))
 
-(defn grid->intersections [grid]
+(defn grid->intersection-steps [grid]
   (->> grid
        (filter intersection?)
-       keys))
+       vals))
 
-(defn coords->distance [[^int x ^int y]]
-  (+ (Math/abs x) (Math/abs y)))
+(defn wires->total-steps [wires]
+  (->> wires vals (reduce + 0))  )
 
 (defn run []
   (let [grid (-> {}
-                 (map-path wire1)
-                 (map-path wire2))]
+                 (map-path :wire0 wire1)
+                 (map-path :wire1 wire2))]
     (->> grid
-         grid->intersections
-         (map coords->distance)
+         grid->intersection-steps
+         (map wires->total-steps)
          (apply min))))
