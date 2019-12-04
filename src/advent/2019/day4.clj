@@ -1,5 +1,4 @@
-(ns advent.2019.day4
-  (:require [clojure.string :as str]))
+(ns advent.2019.day4)
 
 (defn strict-adjacent-pair? [v]
   (->> v
