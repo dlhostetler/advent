@@ -1,23 +1,19 @@
 (ns advent.2019.day4
   (:require [clojure.string :as str]))
 
-(defn adjacent-pair? [pairs]
-  (->> pairs
-       (map set)
-       (some #(= 1 (count %)))))
+(defn strict-adjacent-pair? [v]
+  (->> v
+       (partition-by identity)
+       (some #(= 2 (count %)))))
 
 (defn vaguely-increasing? [[a b]]
   (<= a b))
 
 (defn password? [^String s]
-  (let [pairs (->> s
-                   seq
-                   (map str)
-                   (map #(Integer/parseInt %))
-                   (partition 2 1))]
+  (let [v (->> s seq (map str) (map #(Integer/parseInt %)))]
     (and (= 6 (count s))
-         (adjacent-pair? pairs)
-         (every? vaguely-increasing? pairs))))
+         (strict-adjacent-pair? v)
+         (every? vaguely-increasing? (partition 2 1 v)))))
 
 (defn run []
   (->> (range 240298 784957)
