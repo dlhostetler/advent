@@ -13,7 +13,9 @@
    "D)I"
    "E)J"
    "J)K"
-   "K)L"])
+   "K)L"
+   "K)YOU"
+   "I)SAN"])
 
 (def input
   (line-seq (io/reader "resources/day6.input")))
@@ -30,14 +32,18 @@
 
 (defn indirect-orbits [orbits orbiter]
   (loop [orbitee (get orbits orbiter)
-         n 0]
+         path []]
     (if orbitee
-      (recur (get orbits orbitee) (inc n))
-      n)))
+      (recur (get orbits orbitee) (conj path orbitee))
+      [orbiter path])))
 
 (defn run []
-  (let [o (advent.2019.day6/parse-orbits input)]
-    (+ (advent.2019.day6/direct-orbits o)
-       (->> (vals o)
-            (map advent.2019.day6/indirect-orbits (repeat o))
-            (reduce + 0)))))
+  (let [o (advent.2019.day6/parse-orbits input)
+        orbit-paths (->> (keys o)
+                         (map advent.2019.day6/indirect-orbits (repeat o))
+                         (into {}))]
+    (loop [santa (:SAN orbit-paths)
+           you (:YOU orbit-paths)]
+      (if (= (last santa) (last you))
+        (recur (butlast santa) (butlast you))
+        (println (+ (count santa) (count you)))))))
