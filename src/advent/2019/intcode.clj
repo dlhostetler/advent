@@ -1,4 +1,5 @@
-(ns advent.2019.intcode)
+(ns advent.2019.intcode
+  (:require [clojure.core.async :as async :refer [<!! >!!]]))
 
 (def instruction->keyword
   {1 :add
@@ -87,13 +88,15 @@
   #_(println (str "(" pointer ")") "Executing halt operation (no op).")
   (halt-pointer state))
 
-(defmethod execute-instruction :input [{:keys [pointer] :as state}]
+(defmethod execute-instruction :input [{:keys [in pointer] :as state}]
   (let [args [:out]
         [out-pos] (parse-args state args)]
-    #_(println (str "(" pointer ")") "Executing input of" out-pos)
+    (println (str "(" pointer ")") "Executing input of" out-pos)
     #_(print "> ")
-    (flush)
-    (let [i (Integer/parseInt (read-line))]
+    #_(flush)
+    (let [i (if in
+              (<!! in)
+              (Integer/parseInt (read-line)))]
       (-> state
           (update :memory safe-assoc out-pos i)
           (advance-pointer args)))))
@@ -127,27 +130,35 @@
   (let [args [:in :in :out]
         [arg0 arg1 out-pos] (parse-args state args)]
     #_(println (str "(" pointer ")")
-             "Executing multiply of" arg0 arg1 "into" out-pos)
+               "Executing multiply of" arg0 arg1 "into" out-pos)
     (-> state
         (update :memory safe-assoc out-pos (* arg0 arg1))
         (advance-pointer args))))
 
-(defmethod execute-instruction :output [{:keys [memory pointer] :as state}]
+(defmethod execute-instruction :output [{:keys [memory out pointer] :as state}]
   (let [args [:out]
-        [arg0] (parse-args state args)]
-    #_(println (str "(" pointer ")") "Executing output of" arg0)
-    (println (get memory arg0))
+        [arg0] (parse-args state args)
+        val (get memory arg0)]
+    (println (str "(" pointer ")") "Executing output of" arg0)
+    (if out
+      (>!! out val)
+      (println val))
     (advance-pointer state args)))
 
 ;; Public
 ;; ======
 
-(defn execute-instructions [memory]
-  (loop [next {:memory memory
-               :pointer 0}]
-    (if-not (-> next :pointer neg?)
-      (recur (execute-instruction next))
-      (:memory next))))
+(defn execute-instructions
+  ([memory]
+   (execute-instructions memory nil nil))
+  ([memory in-chan out-chan]
+   (loop [next {:in in-chan
+                :memory memory
+                :out out-chan
+                :pointer 0}]
+     (if-not (-> next :pointer neg?)
+       (recur (execute-instruction next))
+       (:memory next)))))
 
 (defn set-input [memory noun verb]
   (-> memory
