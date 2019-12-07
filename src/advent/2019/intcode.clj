@@ -65,83 +65,104 @@
                  (throw (ex-info "Unknown position mode."
                                  {:position-mode position-mode})))))))
 
+(defn- log-prefix [{:keys [id pointer]}]
+  (str "[" (name id) ":" pointer "]"))
+
+(defn- log [state & more]
+  (apply println
+         (log-prefix state)
+         more))
+
 (defmulti execute-instruction current-instruction)
 
-(defmethod execute-instruction :add [{:keys [pointer] :as state}]
+(defmethod execute-instruction :add [state]
   (let [args [:in :in :out]
-        [arg0 arg1 out-pos] (parse-args state args)]
-    #_(println (str "(" pointer ")") "Executing add of" arg0 arg1 "into" out-pos)
+        [arg0 arg1 out-pos] (parse-args state args)
+        result (+ arg0 arg1)]
+    (log state arg0 "+" arg1 "=" (str result "@" out-pos))
     (-> state
-        (update :memory safe-assoc out-pos (+ arg0 arg1))
+        (update :memory safe-assoc out-pos result)
         (advance-pointer args))))
 
-(defmethod execute-instruction :equals [{:keys [pointer] :as state}]
+(defmethod execute-instruction :equals [state]
   (let [args [:in :in :out]
-        [arg0 arg1 out-pos] (parse-args state args)]
-    #_(println (str "(" pointer ")") "Executing equals of" arg0 arg1 "into" out-pos)
-    (let [val (if (= arg0 arg1) 1 0)]
-      (-> state
-          (update :memory safe-assoc out-pos val)
-          (advance-pointer args)))))
+        [arg0 arg1 out-pos] (parse-args state args)
+        result (if (= arg0 arg1) 1 0)]
+    (log state arg0 "==" arg1 "=" (str result "@" out-pos))
+    (-> state
+        (update :memory safe-assoc out-pos result)
+        (advance-pointer args))))
 
-(defmethod execute-instruction :halt [{:keys [pointer] :as state}]
-  #_(println (str "(" pointer ")") "Executing halt operation (no op).")
+(defmethod execute-instruction :halt [state]
+  (log state "halt")
   (halt-pointer state))
 
-(defmethod execute-instruction :input [{:keys [in pointer] :as state}]
+(defn- chan-input [{:keys [in-chan]}]
+  (when in-chan
+    (<!! in-chan)))
+
+(defn- stdin-input [state]
+  (print (log-prefix state) "input> ")
+  (flush)
+  (Integer/parseInt (read-line)))
+
+(defmethod execute-instruction :input [state]
   (let [args [:out]
         [out-pos] (parse-args state args)]
-    (println (str "(" pointer ")") "Executing input of" out-pos)
-    #_(print "> ")
-    #_(flush)
-    (let [i (if in
-              (<!! in)
-              (Integer/parseInt (read-line)))]
+    (let [i (or (chan-input state)
+                (stdin-input state))]
+      (log state (str i "->" out-pos))
       (-> state
           (update :memory safe-assoc out-pos i)
           (advance-pointer args)))))
 
-(defmethod execute-instruction :jump-if-false [{:keys [pointer] :as state}]
+(defmethod execute-instruction :jump-if-false [state]
   (let [args [:in :in]
         [arg0 arg1] (parse-args state args)]
-    #_(println (str "(" pointer ")") "Executing jump if false for" arg0 arg1)
     (if (zero? arg0)
-      (set-pointer state arg1)
-      (advance-pointer state args))))
+      (do
+        (log state "jumping to" arg1)
+        (set-pointer state arg1))
+      (do
+        (log state "ignoring jump to" arg1)
+        (advance-pointer state args)))))
 
-(defmethod execute-instruction :jump-if-true [{:keys [pointer] :as state}]
+(defmethod execute-instruction :jump-if-true [state]
   (let [args [:in :in]
         [arg0 arg1] (parse-args state args)]
-    #_(println (str "(" pointer ")") "Executing jump if true for" arg0 arg1)
     (if-not (zero? arg0)
-      (set-pointer state arg1)
-      (advance-pointer state args))))
+      (do
+        (log state "jumping to" arg1)
+        (set-pointer state arg1))
+      (do
+        (log state "ignoring jump to" arg1)
+        (advance-pointer state args)))))
 
 (defmethod execute-instruction :less-than [{:keys [pointer] :as state}]
   (let [args [:in :in :out]
-        [arg0 arg1 out-pos] (parse-args state args)]
-    #_(println (str "(" pointer ")") "Executing less than of" arg0 arg1 "into" out-pos)
-    (let [val (if (< arg0 arg1) 1 0)]
-      (-> state
-          (update :memory safe-assoc out-pos val)
-          (advance-pointer args)))))
-
-(defmethod execute-instruction :multiply [{:keys [memory pointer] :as state}]
-  (let [args [:in :in :out]
-        [arg0 arg1 out-pos] (parse-args state args)]
-    #_(println (str "(" pointer ")")
-               "Executing multiply of" arg0 arg1 "into" out-pos)
+        [arg0 arg1 out-pos] (parse-args state args)
+        result (if (< arg0 arg1) 1 0)]
+    (log state arg0 "<" arg1 "=" (str result "@" out-pos))
     (-> state
-        (update :memory safe-assoc out-pos (* arg0 arg1))
+        (update :memory safe-assoc out-pos result)
         (advance-pointer args))))
 
-(defmethod execute-instruction :output [{:keys [memory out pointer] :as state}]
+(defmethod execute-instruction :multiply [state]
+  (let [args [:in :in :out]
+        [arg0 arg1 out-pos] (parse-args state args)
+        result (* arg0 arg1)]
+    (log state arg0 "*" arg1 "=" (str result "@" out-pos))
+    (-> state
+        (update :memory safe-assoc out-pos result)
+        (advance-pointer args))))
+
+(defmethod execute-instruction :output [{:keys [memory out-chan pointer] :as state}]
   (let [args [:out]
         [arg0] (parse-args state args)
         val (get memory arg0)]
-    (println (str "(" pointer ")") "Executing output of" arg0)
-    (if out
-      (>!! out val)
+    (log state (str val "@" arg0) "out")
+    (if out-chan
+      (>!! out-chan val)
       (println val))
     (advance-pointer state args)))
 
@@ -149,24 +170,14 @@
 ;; ======
 
 (defn execute-instructions
-  ([memory]
-   (execute-instructions memory nil nil))
-  ([memory in-chan out-chan]
-   (loop [next {:in in-chan
+  ([id memory]
+   (execute-instructions id memory nil nil))
+  ([id memory in-chan out-chan]
+   (loop [next {:id id
+                :in-chan in-chan
                 :memory memory
-                :out out-chan
+                :out-chan out-chan
                 :pointer 0}]
      (if-not (-> next :pointer neg?)
        (recur (execute-instruction next))
        (:memory next)))))
-
-(defn set-input [memory noun verb]
-  (-> memory
-      (assoc 1 noun)
-      (assoc 2 verb)))
-
-(defn calc [memory noun verb]
-  (-> memory
-      (set-input noun verb)
-      execute-instructions
-      (nth 0)))
