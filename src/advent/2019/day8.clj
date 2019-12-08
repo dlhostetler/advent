@@ -7,24 +7,30 @@
 (defn input->layers [input w h]
   (->> input
        (map #(Integer/parseInt (str %)))
-       (partition (* w h))))
+       (partition w)
+       (partition h)))
 
-(defn num-digit [layer digit]
-  (->> layer (filter #(= digit %)) count))
+(defn layer->pixel [layer row col]
+  (nth (nth layer row) col))
 
-(defn fewest-zeros-layer [layers w h]
-  (loop [layers layers
-         min-layer nil
-         min-zeros (* w h)]
-    (if-not (empty? layers)
-      (let [num-zeros (num-digit (first layers) 0)]
-        (if (< num-zeros min-zeros)
-          (recur (rest layers) (first layers) num-zeros)
-          (recur (rest layers) min-layer min-zeros)))
-      min-layer)))
+(defn layers->pixel [layers row col]
+  (loop [layers layers]
+    (when (seq layers)
+      (let [pixel (layer->pixel (first layers) row col)]
+        (if (not= 2 pixel)
+          pixel
+          (recur (rest layers)))))))
 
 (defn run []
-  (let [layers (input->layers input 25 6)
-        layer (fewest-zeros-layer layers 25 6)]
-    (* (num-digit layer 1)
-       (num-digit layer 2))))
+  (let [w 25
+        h 6
+        layers (input->layers input w h)]
+    (doseq [row (range h)]
+      (doseq [col (range w)]
+        (let [pixel (layers->pixel layers row col)]
+          (case pixel
+            0
+            (print " ")
+            1
+            (print "*"))))
+      (println))))
