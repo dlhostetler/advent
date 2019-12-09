@@ -10,6 +10,7 @@
    6 :jump-if-false
    7 :less-than
    8 :equals
+   9 :relative-base-offset
    99 :halt})
 
 (defn digits [n]
@@ -36,14 +37,19 @@
 (defn- halt-pointer [state]
   (set-pointer state -1))
 
-(defn- deref-param [memory i]
-  (let [memory-index (nth memory i)]
-    (nth memory memory-index)))
+(defn safe-nth [v i]
+  (if (>= i (count v))
+    0
+    (nth v i)))
 
 (defn safe-assoc [v i val]
   (assoc (pad v i 0) i val))
 
-(defn- parse-args [{:keys [memory pointer]} args]
+(defn- deref-param [memory i relative-base]
+  (let [memory-index (safe-nth memory i)]
+    (safe-nth memory (+ memory-index relative-base))))
+
+(defn- parse-args [{:keys [memory pointer relative-base]} args]
   (let [position-modes (-> (nth memory pointer)
                            (/ 100)
                            int
@@ -57,10 +63,18 @@
                          position-mode (nth position-modes i)]]
 
                (cond
+                 ;; in - relative position mode
+                 (and (= :in arg-type) (= 2 position-mode))
+                 (deref-param memory offset relative-base)
+                 ;; in -  position mode
                  (and (= :in arg-type) (= 0 position-mode))
-                 (deref-param memory offset)
+                 (deref-param memory offset 0)
+                 ;; out - relative position mode
+                 (and (= :out arg-type) (= 2 position-mode))
+                 (+ (safe-nth memory offset) relative-base)
+                 ;; out - immediate mode
                  (or (= :out arg-type) (= 1 position-mode))
-                 (nth memory offset)
+                 (safe-nth memory offset)
                  :else
                  (throw (ex-info "Unknown position mode."
                                  {:position-mode position-mode})))))))
@@ -138,7 +152,7 @@
         (log state "ignoring jump to" arg1)
         (advance-pointer state args)))))
 
-(defmethod execute-instruction :less-than [{:keys [pointer] :as state}]
+(defmethod execute-instruction :less-than [state]
   (let [args [:in :in :out]
         [arg0 arg1 out-pos] (parse-args state args)
         result (if (< arg0 arg1) 1 0)]
@@ -156,15 +170,23 @@
         (update :memory safe-assoc out-pos result)
         (advance-pointer args))))
 
-(defmethod execute-instruction :output [{:keys [memory out-chan pointer] :as state}]
-  (let [args [:out]
-        [arg0] (parse-args state args)
-        val (get memory arg0)]
-    (log state (str val "@" arg0) "out")
+(defmethod execute-instruction :output [{:keys [out-chan] :as state}]
+  (let [args [:in]
+        [arg0] (parse-args state args)]
+    (log state arg0 "out")
     (if out-chan
-      (>!! out-chan val)
-      (println val))
+      (>!! out-chan arg0)
+      (println arg0))
     (advance-pointer state args)))
+
+(defmethod execute-instruction :relative-base-offset [{:keys [relative-base] :as state}]
+  (let [args [:in]
+        [arg0] (parse-args state args)
+        result (+ relative-base arg0)]
+    (log state "relative base" relative-base "+" arg0 "=" result)
+    (-> state
+        (assoc :relative-base result)
+        (advance-pointer args))))
 
 ;; Public
 ;; ======
@@ -177,7 +199,8 @@
                 :in-chan in-chan
                 :memory memory
                 :out-chan out-chan
-                :pointer 0}]
+                :pointer 0
+                :relative-base 0}]
      (if-not (-> next :pointer neg?)
        (recur (execute-instruction next))
        (:memory next)))))
