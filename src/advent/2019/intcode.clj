@@ -1,6 +1,8 @@
 (ns advent.2019.intcode
   (:require [clojure.core.async :as async :refer [<!! >!!]]))
 
+(def ^:dynamic *log?* false)
+
 (def instruction->keyword
   {1 :add
    2 :multiply
@@ -49,7 +51,34 @@
   (let [memory-index (safe-nth memory i)]
     (safe-nth memory (+ memory-index relative-base))))
 
-(defn- parse-args [{:keys [memory pointer relative-base]} args]
+(defn- parse-in-arg [{:keys [memory relative-base]} arg-offset position-mode]
+  (case position-mode
+    ;; position mode
+    0
+    (deref-param memory arg-offset 0)
+    ;; immediate mode
+    1
+    (safe-nth memory arg-offset)
+    ;; relative position mode
+    2
+    (deref-param memory arg-offset relative-base)
+    ;; default
+    (throw (ex-info (str "Unknown ::in position mode (" position-mode ").")
+                    {:position-mode position-mode}))))
+
+(defn- parse-out-arg [{:keys [memory relative-base]} arg-offset position-mode]
+  (case position-mode
+    ;; position mode
+    0
+    (safe-nth memory arg-offset)
+    ;; relative position mode
+    2
+    (+ (safe-nth memory arg-offset) relative-base)
+    ;; default
+    (throw (ex-info (str "Unknown :out position mode (" position-mode ").")
+                    {:position-mode position-mode}))))
+
+(defn- parse-args [{:keys [memory pointer] :as state} args]
   (let [position-modes (-> (nth memory pointer)
                            (/ 100)
                            int
@@ -59,33 +88,24 @@
                            (pad (count args) 0))]
     (into [] (for [i (range (count args))
                    :let [arg-type (nth args i)
-                         offset (+ pointer i 1)
+                         arg-offset (+ pointer i 1)
                          position-mode (nth position-modes i)]]
-
-               (cond
-                 ;; in - relative position mode
-                 (and (= :in arg-type) (= 2 position-mode))
-                 (deref-param memory offset relative-base)
-                 ;; in -  position mode
-                 (and (= :in arg-type) (= 0 position-mode))
-                 (deref-param memory offset 0)
-                 ;; out - relative position mode
-                 (and (= :out arg-type) (= 2 position-mode))
-                 (+ (safe-nth memory offset) relative-base)
-                 ;; out - immediate mode
-                 (or (= :out arg-type) (= 1 position-mode))
-                 (safe-nth memory offset)
-                 :else
-                 (throw (ex-info "Unknown position mode."
-                                 {:position-mode position-mode})))))))
+               (case arg-type
+                 :in
+                 (parse-in-arg state arg-offset position-mode)
+                 :out
+                 (parse-out-arg state arg-offset position-mode)
+                 (throw (ex-info (str "Unknown arg type (" arg-type ").")
+                                 {:arg-type arg-type})))))))
 
 (defn- log-prefix [{:keys [id pointer]}]
   (str "[" (name id) ":" pointer "]"))
 
 (defn- log [state & more]
-  (apply println
-         (log-prefix state)
-         more))
+  (when *log?*
+    (apply println
+           (log-prefix state)
+           more)))
 
 (defmulti execute-instruction current-instruction)
 
@@ -190,6 +210,11 @@
 
 ;; Public
 ;; ======
+
+(defmacro with-logging
+  [& body]
+  `(binding [*log?* true]
+      ~@body))
 
 (defn execute-instructions
   ([id memory]
