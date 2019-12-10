@@ -1,5 +1,6 @@
 (ns advent.2019.day10
-  (:require [clojure.java.io :as io]))
+  (:require [clojure.java.io :as io]
+            [plumbing.core :refer :all]))
 
 
 (defn parse-asteroid [x y c]
@@ -34,25 +35,43 @@
     (+ (Math/abs delta-x) (Math/abs delta-y))))
 
 (defn analyze-asteroid [asteroid-point target-point]
-  [target-point {:angle (angle asteroid-point target-point)
-                 :distance (distance asteroid-point target-point)}])
+  {:angle (angle asteroid-point target-point)
+   :distance (distance asteroid-point target-point)
+   :point target-point})
 
 (defn analyze-field [field asteroid-point]
-  (->> field
-       (map analyze-asteroid (repeat asteroid-point))
-       (into {})))
+  (mapv analyze-asteroid (repeat asteroid-point) field))
 
-(defn num-angles [analyzed-field]
-  (->> analyzed-field
-       vals
-       (remove (comp zero? :distance))
-       (map :angle)
-       (into #{})
-       count))
+(defn pass [i angles points-by-angle]
+  (->> (for [angle angles
+             :let [points (get points-by-angle angle)]
+             :when (< i (count points))]
+         (nth points i))))
+
+;; Test - 11 13
+;; Real - 20 19
 
 (defn run []
-  (let [field (parse-field)]
-    (->> field
-         (map analyze-field (repeat field))
-         (map num-angles)
-         (apply max))))
+  (let [field (parse-field)
+        analyzed-field (->> (analyze-field field [20 19])
+                            (remove (comp zero? :distance))
+                            (group-by :angle)
+                            (map-vals #(sort-by :distance %))
+                            (map-vals #(map :point %)))
+        angles (into #{} (keys analyzed-field))
+        angles (concat (->> angles
+                            (filter zero?)
+                            sort)
+                       (->> angles
+                            (filter neg?)
+                            sort
+                            reverse)
+                       (->> angles
+                            (filter pos?)
+                            sort
+                            reverse))
+        max-points (->> analyzed-field
+                        vals
+                        (map count)
+                        (apply max))]
+    (into [] (mapcat pass (range max-points) (repeat angles) (repeat analyzed-field)))))
