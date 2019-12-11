@@ -228,4 +228,10 @@
                 :relative-base 0}]
      (if-not (-> next :pointer neg?)
        (recur (execute-instruction next))
-       (:memory next)))))
+       (do
+         (when in-chan
+           ;; TODO: this is fairly ugly, make it not block
+           (async/close! in-chan)
+           (async/<!! in-chan))
+         (when out-chan (async/close! out-chan))
+         (:memory next))))))
