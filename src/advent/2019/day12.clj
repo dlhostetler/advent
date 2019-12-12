@@ -24,24 +24,21 @@
 (defn axis-gravity-into-velocity [axis-velocity axis-position-a axis-position-b]
   (+ axis-velocity (compare axis-position-b axis-position-a)))
 
-(defn gravity-into-velocity [velocity-a position-a position-b]
-  (mapv axis-gravity-into-velocity velocity-a position-a position-b))
-
-(defn gravity [moons [moon-a moon-b]]
+(defn gravity [moons [moon-a moon-b] axis]
   (update-in moons
-             [moon-a :velocity]
-             gravity-into-velocity
-             (get-in moons [moon-a :position])
-             (get-in moons [moon-b :position])))
+             [moon-a :velocity axis]
+             axis-gravity-into-velocity
+             (get-in moons [moon-a :position axis])
+             (get-in moons [moon-b :position axis])))
 
 (defn move-axis [axis-position axis-velocity]
   (+ axis-position axis-velocity))
 
-(defn move-position [position velocity]
-  (map move-axis position velocity))
+(defn move-position [position velocity axis]
+  (update position axis move-axis (nth velocity axis)))
 
-(defn move [moon]
-  (update moon :position move-position (:velocity moon)))
+(defn move [moon axis]
+  (update moon :position move-position (:velocity moon) axis))
 
 (defn moon-pairs [moons]
   (for [moon-a (keys moons)
@@ -49,34 +46,22 @@
         :when (not= moon-a moon-b)]
     [moon-a moon-b]))
 
-(defn step [moons]
+(defn step [moons axis]
   (->> moons
        moon-pairs
-       (reduce gravity moons)
-       (map-vals move)))
+       (reduce #(gravity %1 %2 axis) moons)
+       (map-vals #(move % axis))))
 
-(defn steps [moons n]
-  (loop [moons moons
-         steps n]
-    (if (pos? steps)
-      (recur (step moons) (dec steps))
-      moons)))
-
-(defn potential [moon]
-  (->> moon
-       :position
-       (map #(Math/abs %))
-       (reduce + 0)))
-
-(defn kinetic [moon]
-  (->> moon
-       :velocity
-       (map #(Math/abs %))
-       (reduce + 0)))
+(defn converge [moons axis]
+  (loop [next-moons (step moons axis)
+         steps 1]
+    (when (zero? (mod steps 100000))
+      (println "Step" steps))
+    (if (not= moons next-moons)
+      (recur (step next-moons axis) (inc steps))
+      steps)))
 
 (defn run []
-  (let [moons (steps input 1000)
-        pot (mapv potential (vals moons))
-        kin (mapv kinetic (vals moons))
-        total (map #(* %1 %2) pot kin)]
-    (reduce + 0 total)))
+  [(converge input 0)
+   (converge input 1)
+   (converge input 2)])
