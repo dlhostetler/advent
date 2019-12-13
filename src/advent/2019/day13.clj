@@ -13,6 +13,7 @@
   (when-let [x (async/<!! out-chan)]
     [[x (async/<!! out-chan)] (async/<!! out-chan)]))
 
+<<<<<<< HEAD
 (defn read-tiles [out-chan]
   (loop [tile (read-tile out-chan)
          tiles []]
@@ -26,3 +27,51 @@
         tiles (read-tiles out-chan)]
     @f
     (->> tiles vals (filter #(= 2 %)) count)))
+=======
+(defn read-tiles [out-chan tiles]
+  (loop [tile (read-tile out-chan)]
+    (when tile
+      (swap! tiles assoc (first tile) (last tile))
+      (recur (read-tile out-chan)))))
+
+(defn display [tiles]
+  (let [board (into {} tiles)
+        max-x (->> board keys (map first) (apply max))
+        max-y (->> board keys (map last) (apply max))]
+    (doseq [y (range (inc max-y))]
+      (doseq [x (range (inc max-x))]
+        (case (get tiles [x y] 0)
+          0
+          (print " ")
+          1
+          (print "|")
+          2
+          (print "B")
+          3
+          (print "-")
+          4
+          (print "*")))
+      (println))
+    (println (get tiles [-1 0] 0))))
+
+(defn position-of [tiles target-tile]
+  (-> (filter (fn [[_ tile]] (= tile target-tile)) tiles)
+      first
+      first))
+
+(defn move-paddle [ball paddle]
+  (compare (first ball) (first paddle)))
+
+(defn run []
+  (let [tiles (atom {})
+        in (fn []
+             (display @tiles)
+             (println)
+             (move-paddle (position-of @tiles 4)
+                          (position-of @tiles 3)))
+        out-chan (async/chan)
+        f (future (intcode/execute-instructions :arcade memory in out-chan))]
+    (future (read-tiles out-chan tiles))
+    @f
+    (display @tiles)))
+>>>>>>> 8895dc7... 2019, Day 13, Part 2.

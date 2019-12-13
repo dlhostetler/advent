@@ -131,9 +131,9 @@
   (log state "halt")
   (halt-pointer state))
 
-(defn- chan-input [{:keys [in-chan]}]
-  (when in-chan
-    (<!! in-chan)))
+(defn- fn-input [{:keys [in-fn]}]
+  (when in-fn
+    (in-fn)))
 
 (defn- stdin-input [state]
   (print (log-prefix state) "input> ")
@@ -143,7 +143,7 @@
 (defmethod execute-instruction :input [state]
   (let [args [:out]
         [out-pos] (parse-args state args)]
-    (let [i (or (chan-input state)
+    (let [i (or (fn-input state)
                 (stdin-input state))]
       (log state (str i "->" out-pos))
       (-> state
@@ -216,12 +216,15 @@
   `(binding [*log?* true]
       ~@body))
 
+;; TODO: support channels or functions both (maybe just have a function wrap
+;; a channel?)
+
 (defn execute-instructions
   ([id memory]
    (execute-instructions id memory nil nil))
-  ([id memory in-chan out-chan]
+  ([id memory in-fn out-chan]
    (loop [next {:id id
-                :in-chan in-chan
+                :in-fn in-fn
                 :memory memory
                 :out-chan out-chan
                 :pointer 0
@@ -229,9 +232,5 @@
      (if-not (-> next :pointer neg?)
        (recur (execute-instruction next))
        (do
-         (when in-chan
-           ;; TODO: this is fairly ugly, make it not block
-           (async/close! in-chan)
-           (async/<!! in-chan))
          (when out-chan (async/close! out-chan))
          (:memory next))))))
