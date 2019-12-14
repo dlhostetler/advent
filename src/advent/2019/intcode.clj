@@ -127,24 +127,16 @@
         (update :memory safe-assoc out-pos result)
         (advance-pointer args))))
 
-(defmethod execute-instruction :halt [state]
+(defmethod execute-instruction :halt [{:keys [halt] :as state}]
   (log state "halt")
+  (when halt
+    (halt))
   (halt-pointer state))
 
-(defn- fn-input [{:keys [in-fn]}]
-  (when in-fn
-    (in-fn)))
-
-(defn- stdin-input [state]
-  (print (log-prefix state) "input> ")
-  (flush)
-  (Integer/parseInt (read-line)))
-
-(defmethod execute-instruction :input [state]
+(defmethod execute-instruction :input [{:keys [in] :as state}]
   (let [args [:out]
         [out-pos] (parse-args state args)]
-    (let [i (or (fn-input state)
-                (stdin-input state))]
+    (let [i (in)]
       (log state (str i "->" out-pos))
       (-> state
           (update :memory safe-assoc out-pos i)
@@ -190,13 +182,11 @@
         (update :memory safe-assoc out-pos result)
         (advance-pointer args))))
 
-(defmethod execute-instruction :output [{:keys [out-chan] :as state}]
+(defmethod execute-instruction :output [{:keys [out] :as state}]
   (let [args [:in]
         [arg0] (parse-args state args)]
     (log state arg0 "out")
-    (if out-chan
-      (>!! out-chan arg0)
-      (println arg0))
+    (out arg0)
     (advance-pointer state args)))
 
 (defmethod execute-instruction :relative-base-offset [{:keys [relative-base] :as state}]
@@ -216,21 +206,38 @@
   `(binding [*log?* true]
       ~@body))
 
-;; TODO: support channels or functions both (maybe just have a function wrap
-;; a channel?)
+(defn stdin []
+  (print "input> ")
+  (flush)
+  (Integer/parseInt (read-line)))
+
+(defn chan->in [chan]
+  (fn []
+    (async/<!! chan)))
+
+(defn stdout [i]
+  (println i))
+
+(defn chan->out [chan]
+  (fn [i]
+    (async/>!! chan i)))
+
+(defn halt-chans [& chans]
+  (fn []
+    (doseq [chan chans]
+      (async/close! chan))))
 
 (defn execute-instructions
   ([id memory]
-   (execute-instructions id memory nil nil))
-  ([id memory in-fn out-chan]
-   (loop [next {:id id
-                :in-fn in-fn
+   (execute-instructions id memory stdin stdout nil))
+  ([id memory in out halt]
+   (loop [next {:halt halt
+                :id id
+                :in in
                 :memory memory
-                :out-chan out-chan
+                :out out
                 :pointer 0
                 :relative-base 0}]
      (if-not (-> next :pointer neg?)
        (recur (execute-instruction next))
-       (do
-         (when out-chan (async/close! out-chan))
-         (:memory next))))))
+       (:memory next)))))

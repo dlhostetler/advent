@@ -14,10 +14,21 @@
        (keep-indexed #(if (= target %2) %1))
        (map nth (repeat inputs))))
 
+(defn set-input [memory noun verb]
+  (-> memory
+      (assoc 1 noun)
+      (assoc 2 verb)))
+
+(defn calc [memory noun verb]
+  (-> memory
+      (set-input noun verb)
+      (#(intcode/execute-instructions :calc %))
+      (nth 0)))
+
 (defn run []
   (let [target 19690720
         inputs (gen-inputs (range 0 100) (range 0 100))]
     (->> inputs
-         (map #(intcode/calc broken-input (first %) (second %)))
+         (map #(calc broken-input (first %) (second %)))
          (find-target target inputs)
          first)))

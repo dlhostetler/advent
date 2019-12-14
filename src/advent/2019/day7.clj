@@ -10,7 +10,11 @@
   [3, 15, 3, 16, 1002, 16, 10, 16, 1, 16, 15, 15, 4, 15, 99, 0, 0])
 
 (defn amplifier [id memory phase-setting in-chan out-chan]
-  (let [f (future (intcode/execute-instructions id memory in-chan out-chan))]
+  (let [f (future (intcode/execute-instructions id
+                                                memory
+                                                (intcode/chan->in in-chan)
+                                                (intcode/chan->out out-chan)
+                                                (intcode/halt-chans out-chan)))]
     (>!! in-chan phase-setting)
     f))
 

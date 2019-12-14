@@ -13,21 +13,6 @@
   (when-let [x (async/<!! out-chan)]
     [[x (async/<!! out-chan)] (async/<!! out-chan)]))
 
-<<<<<<< HEAD
-(defn read-tiles [out-chan]
-  (loop [tile (read-tile out-chan)
-         tiles []]
-    (if tile
-      (recur (read-tile out-chan) (conj tiles tile))
-      (into {} tiles))))
-
-(defn run []
-  (let [out-chan (async/chan)
-        f (future (intcode/execute-instructions :arcade memory nil out-chan))
-        tiles (read-tiles out-chan)]
-    @f
-    (->> tiles vals (filter #(= 2 %)) count)))
-=======
 (defn read-tiles [out-chan tiles]
   (loop [tile (read-tile out-chan)]
     (when tile
@@ -70,8 +55,11 @@
              (move-paddle (position-of @tiles 4)
                           (position-of @tiles 3)))
         out-chan (async/chan)
-        f (future (intcode/execute-instructions :arcade memory in out-chan))]
+        f (future (intcode/execute-instructions :arcade
+                                                memory
+                                                in
+                                                (intcode/chan->out out-chan)
+                                                (intcode/halt-chans out-chan)))]
     (future (read-tiles out-chan tiles))
     @f
     (display @tiles)))
->>>>>>> 8895dc7... 2019, Day 13, Part 2.

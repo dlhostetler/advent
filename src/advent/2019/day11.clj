@@ -40,19 +40,14 @@
          at [0 0]
          direction :up]
     (async/>!! in-chan (get panels at 0))
-    (let [color (async/<!! out-chan)]
-      (println "paint" at color)
-      (if color
-        (let [rotate (async/<!! out-chan)
-              _ (println "raw rotate" rotate)
-              new-direction (turn direction rotate)
-              new-at (forward at new-direction)]
-          (println "new direction" new-direction)
-          (println "new at" new-at)
-          (recur (assoc panels at color)
-                 new-at
-                 new-direction))
-        panels))))
+    (if-let [color (async/<!! out-chan)]
+      (let [rotate (async/<!! out-chan)
+            new-direction (turn direction rotate)
+            new-at (forward at new-direction)]
+        (recur (assoc panels at color)
+               new-at
+               new-direction))
+      panels)))
 
 (defn draw [panels]
   (doseq [y (range -50 50)]
@@ -66,8 +61,12 @@
     (println)))
 
 (defn run []
-  (let [in-chan (async/chan)
+  (let [in-chan (async/chan 1)
         out-chan (async/chan)
         panels (future (paint in-chan out-chan))]
-    (intcode/execute-instructions :painter memory in-chan out-chan)
+    (intcode/execute-instructions :painter
+                                  memory
+                                  (intcode/chan->in in-chan)
+                                  (intcode/chan->out out-chan)
+                                  (intcode/halt-chans out-chan))
     (draw @panels)))
