@@ -1,8 +1,9 @@
 (ns advent.2019.day13
-  (:require [clojure.java.io :as io]
-            [clojure.string :as str]
+  (:require [advent.2019.grid :as grid]
             [advent.2019.intcode :as intcode]
-            [clojure.core.async :as async]))
+            [clojure.core.async :as async]
+            [clojure.java.io :as io]
+            [clojure.string :as str]))
 
 (def memory
   (mapv #(Integer/parseInt %) (-> (io/reader "resources/day11.input")
@@ -16,28 +17,25 @@
 (defn read-tiles [out-chan tiles]
   (loop [tile (read-tile out-chan)]
     (when tile
+      (println "tile" tile)
       (swap! tiles assoc (first tile) (last tile))
+      (println "check" (get @tiles (first tile)))
       (recur (read-tile out-chan)))))
 
 (defn display [tiles]
-  (let [board (into {} tiles)
-        max-x (->> board keys (map first) (apply max))
-        max-y (->> board keys (map last) (apply max))]
-    (doseq [y (range (inc max-y))]
-      (doseq [x (range (inc max-x))]
-        (case (get tiles [x y] 0)
-          0
-          (print " ")
-          1
-          (print "|")
-          2
-          (print "B")
-          3
-          (print "-")
-          4
-          (print "*")))
-      (println))
-    (println (get tiles [-1 0] 0))))
+  (grid/print (dissoc tiles [-1 0])
+              (fn [tile]
+                (when (= tile 4) (println "ball"))
+                (get {0 " "
+                  1 "|"
+                  2 "B"
+                  3 "-"
+                  4 "*"} tile))
+              {:default 0
+               :empty-point " "
+               :y-dir :top-down})
+  (println (get tiles [-1 0] 0))
+  (Thread/sleep 3000))
 
 (defn position-of [tiles target-tile]
   (-> (filter (fn [[_ tile]] (= tile target-tile)) tiles)
@@ -45,15 +43,18 @@
       first))
 
 (defn move-paddle [ball paddle]
+  (println "ball position in move-paddle" ball)
   (compare (first ball) (first paddle)))
 
 (defn run []
   (let [tiles (atom {})
         in (fn []
-             (display @tiles)
-             (println)
-             (move-paddle (position-of @tiles 4)
-                          (position-of @tiles 3)))
+             (let [tiles @tiles]
+               (println "ball position" (position-of tiles 4))
+               (display tiles)
+               (println)
+               (move-paddle (position-of tiles 4)
+                            (position-of tiles 3))))
         out-chan (async/chan)
         f (future (intcode/execute-instructions :arcade
                                                 memory

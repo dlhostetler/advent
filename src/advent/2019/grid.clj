@@ -71,7 +71,7 @@
 
 (defn visit [grid x y id steps]
   (println (name id) "is visiting" x y "after" steps)
-  (update grid [x y] (fnil conj []) {:id id
+  (update grid [x y] (fnil conj []) {:id    id
                                      :steps steps}))
 
 (defn visit-points [{:keys [grid id position steps]} segment]
@@ -93,10 +93,10 @@
       (update :steps + (length segment))))
 
 (defn path [grid id path]
-  (let [init-context {:grid grid
-                      :id id
+  (let [init-context {:grid     grid
+                      :id       id
                       :position [0, 0]
-                      :steps 0}]
+                      :steps    0}]
     (->> (str/split path #",")
          (map ->segment)
          (reduce segment init-context)
@@ -105,36 +105,44 @@
 ;; Visualization
 ;; =============
 
-(def ^:private empty-point ".")
-
 (defn- bound [grid dimension-fn agg-fn]
   (->> grid
        keys
        (map dimension-fn)
        (apply agg-fn)))
 
-(defn- max-y [grid]
+(defn- grid->max-y [grid]
   (bound grid second max))
 
-(defn- min-y [grid]
+(defn- grid->min-y [grid]
   (bound grid second min))
 
-(defn- max-x [grid]
+(defn- grid->max-x [grid]
   (bound grid first max))
 
-(defn- min-x [grid]
+(defn- grid->min-x [grid]
   (bound grid first min))
 
 (defn print
   ([grid visualize-point]
    (print grid visualize-point {}))
-  ([grid visualize-point {:keys [padding]
-                          :or {padding 1}}]
-   (doseq [y (reverse (range (- (min-y grid) padding)
-                             (inc (+ (max-y grid) padding))))]
-     (doseq [x (range (- (min-x grid) padding)
-                      (inc (+ (max-x grid) padding)))
-             :let [point (get grid [x y])]]
+  ([grid visualize-point {:keys [default
+                                 empty-point
+                                 max-x
+                                 max-y
+                                 min-x
+                                 min-y
+                                 padding
+                                 y-dir]
+                          :or   {empty-point "."
+                                 padding 1}}]
+   (doseq [y (cond-> (range (- (or min-y (grid->min-y grid)) padding)
+                            (inc (+ (or max-y (grid->max-y grid)) padding)))
+               (not= :top-down y-dir)
+               reverse)]
+     (doseq [x (range (- (or min-x (grid->min-x grid)) padding)
+                      (inc (+ (or max-x (grid->max-x grid)) padding)))
+             :let [point (get grid [x y] default)]]
        (core-print (if-let [out (when point (visualize-point point))]
                      out
                      empty-point)))
