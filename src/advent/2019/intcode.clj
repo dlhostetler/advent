@@ -1,5 +1,7 @@
 (ns advent.2019.intcode
-  (:require [clojure.core.async :as async :refer [<!! >!!]]))
+  (:require [clojure.core.async :as async :refer [<!! >!!]]
+            [clojure.java.io :as io]
+            [clojure.string :as str]))
 
 (def ^:dynamic *log?* false)
 
@@ -241,3 +243,8 @@
      (if-not (-> next :pointer neg?)
        (recur (execute-instruction next))
        (:memory next)))))
+
+(defn file->memory [file]
+  (mapv #(Integer/parseInt %) (-> (io/reader file)
+                                  slurp
+                                  (str/split #","))))
