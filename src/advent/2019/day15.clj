@@ -1,7 +1,8 @@
 (ns advent.2019.day15
   (:require [advent.2019.grid :as grid]
             [advent.2019.intcode :as intcode]
-            [clojure.core.async :as async]))
+            [clojure.core.async :as async]
+            [clojure.edn :as edn]))
 
 (def memory
   (intcode/file->memory "resources/day15.input"))
@@ -16,8 +17,8 @@
   (or (get dir-ints direction)
       (throw (ex-info "Invalid direction." {:direction direction}))))
 
-(defn display [{:keys [area droid]}]
-  (grid/print (assoc area droid :droid)
+(defn display-area [area]
+  (grid/print area
               (fn [point]
                 (get {:droid   "D"
                       :nothing "."
@@ -26,6 +27,9 @@
                       :wall    "#"} point))
               {:default     0
                :empty-point " "}))
+
+(defn display [{:keys [area droid]}]
+  (display-area (assoc area droid :droid)))
 
 (defn east [position]
   (update position 0 inc))
@@ -52,26 +56,43 @@
     ;; else
     (throw (ex-info "Invalid direction." {:direction direction}))))
 
-(defn apply-status [{:keys [steps target-point] :as state} status]
-  (println "applying status" status)
+(defn unexplored? [position state]
+  (not (get-in state [:area position])))
+
+(defn at-point [{:keys [droid target-point] :as state}]
+  (let [e (east droid)
+        n (north droid)
+        s (south droid)
+        w (west droid)]
+    (-> state
+        (update :unexplored disj target-point)
+        (cond-> (unexplored? e state) (update :unexplored conj e))
+        (cond-> (unexplored? n state) (update :unexplored conj n))
+        (cond-> (unexplored? s state) (update :unexplored conj s))
+        (cond-> (unexplored? w state) (update :unexplored conj w)))))
+
+(defn apply-status [{:keys [target-point] :as state} status]
+  #_(println "applying status" status)
   (case status
     ;; wall
     0
-    (update state :area assoc target-point :wall)
+    (-> state
+        (update :area assoc target-point :wall)
+        at-point)
     ;; moved
     1
     (-> state
         (update :area assoc target-point :nothing)
-        (assoc :droid target-point))
+        (assoc :droid target-point)
+        at-point)
     ;; moved and found o2 sensor
     2
     (do
-      (println "Found O2 system at" target-point "after" steps "steps")
-      (display (assoc state :droid target-point))
-      (System/exit 1))
-    #_(-> state
-        (update :area assoc target-point :o2)
-        (assoc :droid target-point))))
+      (println "Found O2 system at" target-point)
+      (-> state
+          (update :area assoc target-point :o2)
+          (assoc :droid target-point)
+          at-point))))
 
 (defn pick-dir [{:keys [area droid]}]
   (->> [[(north droid) :north]
@@ -82,30 +103,36 @@
        first
        last))
 
-(defn random-dir []
-  (rand-nth [:north :east :south :west]))
+(defn random-dir [{:keys [area droid]}]
+  (->> [[(north droid) :north]
+        [(east droid) :east]
+        [(south droid) :south]
+        [(west droid) :west]]
+       (remove (comp #(= :wall %) area first))
+       rand-nth
+       last))
 
 (defn run []
-  (let [state (atom {:area  {[0 0] :origin}
-                     :droid [0 0]
-                     :steps 0})
+  (let [state (atom {:area       {[0 0] :origin}
+                     :droid      [0 0]
+                     :unexplored #{}})
         out-chan (async/chan 1)
         in (fn []
              (when (:target-point @state)
                (let [status (async/<!! out-chan)]
                  (swap! state apply-status status)))
              #_(println (with-out-str (clojure.pprint/pprint @state)))
-             (display @state)
-             (let [direction (pick-dir @state)
-                   direction (if direction
-                               (do
-                                 (swap! state update :steps inc)
-                                 direction)
-                               (do
-                                 (swap! state update :steps dec)
-                                 (random-dir)))]
+             #_(display @state)
+             (let [direction (or (pick-dir @state)
+                                 (when-not (empty? (:unexplored @state)) (random-dir @state)))]
+               (when-not direction
+                 (println "not sure where to go")
+                 (display @state)
+                 (println "\n\n")
+                 (clojure.pprint/pprint (:area @state))
+                 (System/exit 1))
                (swap! state assoc :target-point (next-position (:droid @state) direction))
-               (println "moving" direction)
+               #_(println "moving" direction)
                (dir->int direction)))]
     (intcode/execute-instructions :arcade
                                   memory
@@ -113,3 +140,42 @@
                                   (intcode/chan->out out-chan)
                                   (intcode/halt-chans out-chan))
     nil))
+
+;; Part 2
+;; ======
+
+(def init-area
+  (edn/read-string (slurp "resources/day15.area")))
+
+(defn oxygen? [[point thing]]
+  (= :o2 thing))
+
+(defn nothing? [[point thing]]
+  (= :nothing thing))
+
+(defn set-oxygen [area point]
+  (assoc area point :o2))
+
+(defn waft-oxygen [area point]
+  (->> [(north point)
+        (east point)
+        (south point)
+        (west point)]
+       (filter (comp #(= :nothing %) area))
+       (reduce set-oxygen area)))
+
+(defn waft [area]
+  (let [o2-points (->> area
+                       (filter oxygen?)
+                       (mapv first))]
+    (reduce waft-oxygen area o2-points)))
+
+(defn run2 []
+  (loop [area init-area
+         n 0]
+    (if (not (empty? (filter nothing? area)))
+      (do
+        (display-area area)
+        (Thread/sleep 1000)
+        (recur (waft area) (inc n)))
+      (println "It took" n "minutes"))))
