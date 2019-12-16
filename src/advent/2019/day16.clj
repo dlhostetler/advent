@@ -6,35 +6,31 @@
        (map str)
        (mapv #(Integer/parseInt %))))
 
-(defn ones-digit [i]
-  (-> i
-      str
-      last
-      str
-      Integer/parseInt))
+(defn to-drop [digits]
+  (->> digits
+       (take 7)
+       (apply str)
+       Integer/parseInt))
 
-(defn pattern [i n]
-  (->> [0 1 0 -1]
-       (map #(repeat (inc i) %))
-       repeat
-       flatten
-       rest
-       (take n)))
-
-(defn phase-digits [digits i]
-  (let [p (pattern i (count digits))]
-    (->> (map * digits p)
-         (reduce + 0)
-         ones-digit)))
+(defn calc [digits n]
+  (mod (+ (nth digits n) (nth digits (inc n))) 10))
 
 (defn phase [digits]
-  (map #(phase-digits digits %) (range (count digits))))
+  (loop [digits digits
+         n (- (count digits) 2)]
+    (if (pos? n)
+      (recur (assoc digits n (calc digits n))
+             (dec n))
+      (assoc digits n (calc digits n)))))
 
 (defn run []
-  (->> (loop [digits input
-              n 100]
-         (if (pos? n)
-           (recur (phase digits) (dec n))
-           digits))
-       (take 8)
-       (apply str)))
+  (let [output (loop [digits (vec (flatten (repeat 10000 input)))
+                      n 100]
+                 (println "n" n)
+                 (if (pos? n)
+                   (recur (time (phase digits)) (dec n))
+                   digits))]
+    (->> output
+         (drop (to-drop input))
+         (take 8)
+         (apply str))))
