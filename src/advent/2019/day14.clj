@@ -28,7 +28,7 @@
 
 (defn produce-inputs [state [target-quantity target-material :as target] available]
   (let [{:keys [inputs quantity]} (get reactions target-material)
-        multiplier (int (Math/ceil (/ (- target-quantity available) quantity)))]
+        multiplier (long (Math/ceil (/ (- target-quantity available) quantity)))]
     (println "multiplier" (- target-quantity available) quantity multiplier)
     (doseq [[input-quantity input-material] inputs]
       (produce state [(* multiplier input-quantity) input-material])
@@ -56,7 +56,7 @@
                (fnil + 0)
                target-quantity)
         (let [{:keys [quantity]} (get reactions target-material)
-              multiplier (int (Math/ceil (/ (- target-quantity available) quantity)))]
+              multiplier (long (Math/ceil (/ (- target-quantity available) quantity)))]
           (produce-inputs state target available)
           (swap! state
                  update-in
