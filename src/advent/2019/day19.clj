@@ -18,11 +18,15 @@
                                   (intcode/halt-chans out-chan))
     (async/<!! out-chan)))
 
-(defn deploy->grid [w h]
-  (into {} (for [x (range w)
-                 y (range h)
-                 :let [point [x y]]]
-             [point (deploy point)])))
+(defn points [x y w h]
+  (for [x (range x (+ x w))
+        y (range y (+ y h))]
+    [x y]))
+
+(defn deploy->grid [x y w h]
+  (->> (points x y w h)
+       (pmap (fn [p] [p (deploy p)]))
+       (into {})))
 
 (defn display [grid]
   (grid/print grid
@@ -33,10 +37,26 @@
                :padding 0
                :y-dir :top-down}))
 
-(defn run []
-  (let [grid (deploy->grid 50 50)]
+(defn fits-width? [grid x y w]
+  (->> (map (fn [x y] [x y]) (range x (+ x w)) (repeat y))
+       (map grid)
+       (every? #(= 1 %))))
+
+(defn fits-height? [grid x y h]
+  (->> (map (fn [x y] [x y]) (repeat x) (range y (+ y h)))
+       (map grid)
+       (every? #(= 1 %))))
+
+(defn fits? [grid x y w h]
+  (and (fits-width? grid x y w)
+       (fits-height? grid x y h)))
+
+(defn fit [grid x y w h target-w target-h]
+  (->> (points x y w h)
+       (filter (fn [[x y]] (fits? grid x y target-w target-h)))
+       first))
+
+(defn run [x y w h]
+  (let [grid (deploy->grid x y w h)]
     (display grid)
-    (->> grid
-         vals
-         (filter #(= 1 %))
-         count)))
+    (fit grid x y w h 100 100)))
