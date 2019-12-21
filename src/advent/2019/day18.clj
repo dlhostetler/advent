@@ -96,38 +96,42 @@
           all-pois))
 
 (defn all-poi-paths [grid graph tile->positions]
-  (let [all-pois (-> grid all-keys (conj "@"))]
+  (let [all-pois (-> grid all-keys (conj "1" "2" "3" "4"))]
     (reduce #(poi-paths %1 graph tile->positions all-pois %2) {} all-pois)))
 
 (def ^:private inf Double/POSITIVE_INFINITY)
 
-(defn available-keys [grid poi-paths all-ks current need-ks]
-  (let [have-ks (set/difference all-ks need-ks)
-        potential-paths (-> (get poi-paths current)
-                            (select-keys need-ks))]
-    (->> potential-paths
-         (filter #(viable-path? grid have-ks %))
-         keys)))
+(defn available-keys [grid poi-paths all-ks all-current need-ks]
+  (let [have-ks (set/difference all-ks need-ks)]
+    (for [current all-current
+          :let [potential-paths (-> (get poi-paths current)
+                                    (select-keys need-ks))]
+          k (->> potential-paths
+                 (filter #(viable-path? grid have-ks %))
+                 keys)]
+      [current k])))
 
 (defn cost [poi-paths current k]
   (path->cost (get-in poi-paths [current k])))
 
-(defn cost-for-keys [grid poi-paths tile->position all-ks current need-ks]
+(defn cost-for-keys [grid poi-paths tile->position all-ks all-current need-ks]
   (if (empty? need-ks)
     0
-    (loop [ks (available-keys grid poi-paths all-ks current need-ks)
+    (loop [current-k-pairs (available-keys grid poi-paths all-ks all-current need-ks)
            result inf]
-      (if-not (empty? ks)
-        (let [k (first ks)
+      (if-not (empty? current-k-pairs)
+        (let [[current k] (first current-k-pairs)
               cost-to-k (cost poi-paths current k)
               cost-through-k (cost-for-keys grid
-                                               poi-paths
-                                               tile->position
-                                               all-ks
-                                               k
-                                               (disj need-ks k))
+                                            poi-paths
+                                            tile->position
+                                            all-ks
+                                            (-> all-current
+                                                (disj current)
+                                                (conj k))
+                                            (disj need-ks k))
               total-cost (+ cost-to-k cost-through-k)]
-          (recur (rest ks) (min result total-cost)))
+          (recur (rest current-k-pairs) (min result total-cost)))
         result))))
 
 (alter-var-root #'cost-for-keys memoize)
@@ -137,4 +141,4 @@
         tile->position (set/map-invert grid)
         graph (advent.2019.day18/grid->graph grid)
         poi-paths (all-poi-paths grid graph tile->position)]
-    (cost-for-keys grid poi-paths tile->position (all-keys grid) "@" (all-keys grid))))
+    (cost-for-keys grid poi-paths tile->position (all-keys grid) #{"1" "2" "3" "4"} (all-keys grid))))
