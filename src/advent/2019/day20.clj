@@ -2,7 +2,8 @@
   (:require [clojure.java.io :as io]
             [clojure.set :as set]
             [loom.graph :as graph]
-            [loom.alg :as graph.alg]))
+            [loom.alg :as graph.alg]
+            [plumbing.core :refer :all]))
 
 (defn file->grid [file]
   (loop [grid {}
@@ -40,18 +41,32 @@
   (->> (point->neighbors point)
        (filter (comp #(= "." %) grid))))
 
-(defn point->edges [grid edges [point tile]]
+(defn point->edges [grid edges [point tile] level]
   (if (= tile ".")
     (into edges (for [neighbor (point->dot-neighbors grid point)]
-                  [point neighbor]))
+                  [(conj point level) (conj neighbor level)]))
     edges))
 
-(defn grid->graph [grid all-labels]
-  (let [normal-edges (reduce #(point->edges grid %1 %2) #{} grid)
-        portal-edges (-> all-labels
-                         (dissoc "AA" "ZZ")
-                         vals)]
-    (apply graph/graph (concat normal-edges portal-edges))))
+(defn inner-portal-edges [all-labels level]
+  (for [[outer inner] (-> all-labels (dissoc "AA" "ZZ") vals)]
+    [(conj inner level) (conj outer (inc level))]))
+
+(defn outer-portal-edges [all-labels level]
+  (for [[outer inner] (-> all-labels (dissoc "AA" "ZZ") vals)]
+    [(conj outer level) (conj inner (dec level))]))
+
+(defn grid->edges
+  [grid all-labels level]
+  (let [edges (concat (reduce #(point->edges grid %1 %2 level) #{} grid)
+                      (inner-portal-edges all-labels level))]
+    (if (pos? level)
+      (concat edges (outer-portal-edges all-labels level))
+      edges)))
+
+(defn grid->graph [grid all-labels levels]
+  (let [edges (into [] (mapcat #(grid->edges grid all-labels %) (range levels)))]
+    ;(clojure.pprint/pprint edges)
+    (apply graph/graph edges)))
 
 (defn label-part? [tile]
   (when tile (re-matches #"[A-Z]" tile)))
@@ -72,16 +87,43 @@
                 (first (point->dot-neighbors grid other-position))))
     labels))
 
+(defn outer? [west-x east-x north-y south-y [x y]]
+  (or (= west-x x)
+      (= east-x x)
+      (= north-y y)
+      (= south-y y)))
+
+(defn order-label-positions
+  [west-x east-x north-y south-y [position0 position1 :as positions]]
+  (if (and position0 position1)
+    (if (outer? west-x east-x north-y south-y position0)
+      [position0 position1]
+      [position1 position0])
+    ;; AA or ZZ
+    positions))
+
 (defn grid->labels [grid]
-  (reduce #(position-into-labels grid %1 %2) {} grid))
+  (let [west-x 2
+        east-x (- (->> grid
+                       keys
+                       (map first)
+                       (apply max)) 2)
+        north-y (- (->> grid
+                        keys
+                        (map last)
+                        (apply max)) 2)
+        south-y 2]
+    (->> grid
+         (reduce #(position-into-labels grid %1 %2) {})
+         (map-vals #(order-label-positions west-x east-x north-y south-y %)))))
 
 (defn run []
   (let [grid (file->grid "resources/day20.input")
         all-labels (grid->labels grid)
-        graph (grid->graph grid all-labels)]
-    (println "Labels" all-labels)
+        graph (grid->graph grid all-labels 50)]
+    ;(println "Labels" all-labels)
     (->> (graph.alg/bf-path graph
-                            (first (get all-labels "AA"))
-                            (first (get all-labels "ZZ")))
-         count
-         dec)))
+                            (conj (first (get all-labels "AA")) 0)
+                            (conj (first (get all-labels "ZZ")) 0))
+           count
+           dec)))
