@@ -137,8 +137,8 @@
 (alter-var-root #'cost-for-keys memoize)
 
 (defn run []
-  (let [grid (advent.2019.day18/file->grid "resources/day18.input")
+  (let [grid (file->grid "resources/day18.input")
         tile->position (set/map-invert grid)
-        graph (advent.2019.day18/grid->graph grid)
+        graph (grid->graph grid)
         poi-paths (all-poi-paths grid graph tile->position)]
     (cost-for-keys grid poi-paths tile->position (all-keys grid) #{"1" "2" "3" "4"} (all-keys grid))))
