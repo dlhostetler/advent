@@ -27,14 +27,16 @@
 
 (defn run []
   (let [memory (intcode/file->memory "resources/day21.input")
-        in (atom (asciify "NOT C T"
+        in (atom (asciify "NOT A J"
+                          "NOT C T"
+                          "AND H T"
                           "OR T J"
                           "NOT B T"
-                          "OR T J"
-                          "NOT A T"
+                          "AND A T"
+                          "AND C T"
                           "OR T J"
                           "AND D J"
-                          "WALK"))
+                          "RUN"))
         in (fn []
              (let [next (-> in deref first)]
                (swap! in rest)
