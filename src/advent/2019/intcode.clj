@@ -206,7 +206,7 @@
 (defmacro with-logging
   [& body]
   `(binding [*log?* true]
-      ~@body))
+     ~@body))
 
 (defn stdin []
   (print "input> ")
@@ -245,6 +245,6 @@
        (:memory next)))))
 
 (defn file->memory [file]
-  (mapv #(Integer/parseInt %) (-> (io/reader file)
-                                  slurp
-                                  (str/split #","))))
+  (mapv #(Long/parseLong %) (-> (io/reader file)
+                                slurp
+                                (str/split #","))))
