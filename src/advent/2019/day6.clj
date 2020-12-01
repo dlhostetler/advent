@@ -18,7 +18,7 @@
    "I)SAN"])
 
 (def input
-  (line-seq (io/reader "resources/day6.input")))
+  (line-seq (io/reader "resources/2019/day6.input")))
 
 (defn parse-orbit [orbits orbit]
   (let [[orbitee orbiter] (str/split orbit #"\)")]

@@ -26,7 +26,7 @@
        (into [])))
 
 (defn run []
-  (let [memory (intcode/file->memory "resources/day17.input")
+  (let [memory (intcode/file->memory "resources/2019/day17.input")
         in (atom (asciify [[\A \B \A \C \B \A \C \B \A \C]
                            #_A [\L 12 \L 12 \L 6 \L 6]
                            #_B [\R 8 \R 4 \L 12]

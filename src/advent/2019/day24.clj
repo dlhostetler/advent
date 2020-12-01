@@ -13,7 +13,7 @@
   (map-indexed #(parse-bug %1 y %2) row))
 
 (defn parse-area []
-  (->> "resources/day24.input"
+  (->> "resources/2019/day24.input"
        io/reader
        line-seq
        (map seq)

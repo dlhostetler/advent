@@ -47,7 +47,7 @@
 
 (defn run []
   (-> (loop [cards (range 10007)
-             shuffles (->> (io/reader "resources/day22.input")
+             shuffles (->> (io/reader "resources/2019/day22.input")
                            line-seq
                            (map resolve-shuffle))]
         (if-not (empty? shuffles)

@@ -2,7 +2,7 @@
   (:require [clojure.java.io :as io]))
 
 (def input
-  (slurp (io/reader "resources/day8.input")))
+  (slurp (io/reader "resources/2019/day8.input")))
 
 (defn input->layers [input w h]
   (->> input

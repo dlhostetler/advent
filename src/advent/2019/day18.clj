@@ -137,7 +137,7 @@
 (alter-var-root #'cost-for-keys memoize)
 
 (defn run []
-  (let [grid (file->grid "resources/day18.input")
+  (let [grid (file->grid "resources/2019/day18.input")
         tile->position (set/map-invert grid)
         graph (grid->graph grid)
         poi-paths (all-poi-paths grid graph tile->position)]

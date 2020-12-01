@@ -6,7 +6,7 @@
   (ConcurrentLinkedQueue.))
 
 (defn ->nic [address q broadcast]
-  (let [memory (intcode/file->memory "resources/day23.input")
+  (let [memory (intcode/file->memory "resources/2019/day23.input")
         init (atom address)
         next (atom nil)
         input (fn []

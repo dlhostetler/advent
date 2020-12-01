@@ -26,7 +26,7 @@
        (into [])))
 
 (defn run []
-  (let [memory (intcode/file->memory "resources/day21.input")
+  (let [memory (intcode/file->memory "resources/2019/day21.input")
         in (atom (asciify "NOT A J"
                           "NOT C T"
                           "AND H T"

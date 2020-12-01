@@ -11,7 +11,7 @@
             (subs 1))))
 
 (defn run []
-  (let [memory (intcode/file->memory "resources/day25.input")
+  (let [memory (intcode/file->memory "resources/2019/day25.input")
         input (atom nil)
         in (fn []
              (let [next (-> input deref first)]

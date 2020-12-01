@@ -11,7 +11,7 @@
   (map-indexed #(parse-asteroid %1 y %2) row))
 
 (defn parse-field []
-  (->> "resources/day10.input"
+  (->> "resources/2019/day10.input"
        io/reader
        line-seq
        (map seq)

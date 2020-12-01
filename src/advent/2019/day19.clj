@@ -3,7 +3,7 @@
             [clojure.core.async :as async]
             [advent.2019.grid :as grid]))
 
-(def memory (intcode/file->memory "resources/day19.input"))
+(def memory (intcode/file->memory "resources/2019/day19.input"))
 
 (defn deploy [[x y]]
   (let [in-chan (async/chan 2)

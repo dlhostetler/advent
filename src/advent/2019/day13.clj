@@ -6,7 +6,7 @@
             [clojure.string :as str]))
 
 (def memory
-  (mapv #(Integer/parseInt %) (-> (io/reader "resources/day11.input")
+  (mapv #(Integer/parseInt %) (-> (io/reader "resources/2019/day11.input")
                                   slurp
                                   (str/split #","))))
 

@@ -118,7 +118,7 @@
          (map-vals #(order-label-positions west-x east-x north-y south-y %)))))
 
 (defn run []
-  (let [grid (file->grid "resources/day20.input")
+  (let [grid (file->grid "resources/2019/day20.input")
         all-labels (grid->labels grid)
         graph (grid->graph grid all-labels 50)]
     ;(println "Labels" all-labels)

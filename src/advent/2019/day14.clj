@@ -18,7 +18,7 @@
                :inputs (mapv parse-ingredient (str/split in #","))}]))
 
 (def reactions
-  (->> "resources/day14.input"
+  (->> "resources/2019/day14.input"
        io/reader
        line-seq
        (mapv parse-reaction)

@@ -5,7 +5,7 @@
             [clojure.edn :as edn]))
 
 (def memory
-  (intcode/file->memory "resources/day15.input"))
+  (intcode/file->memory "resources/2019/day15.input"))
 
 (def dir-ints
   {:east  4
@@ -145,7 +145,7 @@
 ;; ======
 
 (def init-area
-  (edn/read-string (slurp "resources/day15.area")))
+  (edn/read-string (slurp "resources/2019/day15.area")))
 
 (defn oxygen? [[point thing]]
   (= :o2 thing))
