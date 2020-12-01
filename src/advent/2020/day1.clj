@@ -211,14 +211,14 @@
    1530
    1743])
 
-(defn is-2020 [[x y]]
-  (= (+ x y) 2020))
+(defn is-2020 [[x y z]]
+  (= (+ x y z) 2020))
 
-(defn answer [[x y]]
-  (* x y))
+(defn answer [[x y z]]
+  (* x y z))
 
 (defn run []
-  (->> (combo/combinations puzzle-input 2)
+  (->> (combo/combinations puzzle-input 3)
        (filter is-2020)
        first
        answer))
