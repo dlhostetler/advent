@@ -6,24 +6,26 @@
   (line-seq (io/reader "resources/2020/day2.input")))
 
 (defn parse-rule [rule-str]
-  (let [[minmax char] (str/split rule-str #" ")
-        [min max] (str/split minmax #"-")]
+  (let [[firstsecond char] (str/split rule-str #" ")
+        [first second] (str/split firstsecond #"-")]
     {:char char
-     :max (Integer/parseInt max)
-     :min (Integer/parseInt min)}))
+     :first (Integer/parseInt first)
+     :second (Integer/parseInt second)}))
 
 (defn parse-line [line]
   (let [[rule-str password] (str/split line #":")]
-    {:password password
+    {:password (str/trim password)
      :rule (parse-rule rule-str)}))
 
+(defn char-at [s i]
+  (str (nth s (dec i))))
+
 (defn is-valid [{:keys [password rule]}]
-  (let [{:keys [char max min]} rule
-        num-char (->> (seq password)
-                      (map str)
-                      (filter (partial = char))
-                      count)]
-    (<= min num-char max)))
+  (let [{:keys [char first second]} rule
+        at-first (= char (char-at password first))
+        at-second (= char (char-at password second))]
+    (and (or at-first at-second)
+         (not (and at-first at-second)))))
 
 (defn run []
   (->> input
