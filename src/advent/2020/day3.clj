@@ -34,9 +34,19 @@
          (nth x))
      \#))
 
+(defn count-trees [terrain [slope-x slope-y]]
+  (->> (all-slope-coords terrain slope-x slope-y)
+       (map (partial tree? terrain))
+       (filter identity)
+       count))
+
 (defn run []
-  (let [terrain (parse-terrain)]
-    (->> (all-slope-coords terrain 3 1)
-         (map (partial tree? terrain))
-         (filter identity)
-         count)))
+  (let [terrain (parse-terrain)
+        slopes [[1 1]
+                [3 1]
+                [5 1]
+                [7 1]
+                [1 2]]]
+    (->> slopes
+         (map (partial count-trees terrain))
+         (reduce *))))
