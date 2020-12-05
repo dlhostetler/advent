@@ -1,6 +1,6 @@
 (ns advent.2020.day5
   (:require [clojure.java.io :as io]
-            [clojure.string :as str]))
+            [clojure.set :as set]))
 
 (def last-row 127)
 (def last-col 7)
@@ -44,6 +44,9 @@
     (+ (* row 8) col)))
 
 (defn run []
-  (->> (input)
-       (map seat->id)
-       (apply max)))
+  (let [occupied-ids (->> (input)
+                          (map seat->id)
+                          (set))
+        all-ids (set (range (apply min occupied-ids)
+                            (apply max occupied-ids)))]
+    (first (set/difference all-ids occupied-ids))))
