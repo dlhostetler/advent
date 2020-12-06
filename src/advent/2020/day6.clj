@@ -1,5 +1,6 @@
 (ns advent.2020.day6
   (:require [clojure.java.io :as io]
+            [clojure.set :as set]
             [clojure.string :as str]))
 
 (defn answer-groups []
@@ -8,13 +9,13 @@
       slurp
       (str/split #"\n\n")))
 
-(defn to-yes-count [answer-group]
-  (-> answer-group
-      (str/replace "\n" "")
-      set
-      count))
+(defn to-all-yes-count [answer-group]
+  (->> (str/split answer-group #"\n")
+       (map set)
+       (apply set/intersection)
+       count))
 
 (defn run []
   (->> (answer-groups)
-       (map to-yes-count)
+       (map to-all-yes-count)
        (reduce +)))
