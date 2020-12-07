@@ -1,26 +1,29 @@
 (ns advent.2020.day7
   (:require [clojure.java.io :as io]
-            [clojure.set :as set]
+            [clojure.pprint :as pprint]
             [clojure.string :as str]))
 
 (defn parse-target [target-str]
   (let [[num color] (rest (re-matches #"(\d+) (.+) bags?" target-str))]
-    {:color color
-     :num (when num (Integer/parseInt num))}))
+    (when num
+      {:color color
+       :num (Integer/parseInt num)})))
 
 (defn parse-rule [line]
   (let [[k vs] (-> (re-matches #"(.+) bags contain (.+ bags?,?)+." line)
-                   rest)]
-    [k (->> (str/split vs #",")
-            (map str/trim)
-            (map parse-target)
-            (into #{}))]))
+                   rest)
+        targets (->> (str/split vs #",")
+                     (map str/trim)
+                     (map parse-target)
+                     (into #{}))]
+    [k (when (first targets) targets)]))
 
 (defn slurp-rules []
   (->> "resources/2020/day7.input"
        io/reader
        line-seq
-       (map parse-rule)))
+       (map parse-rule)
+       (into {})))
 
 (defn targets-contain [[_ targets] color]
   (some #(= (:color %) color) targets))
@@ -37,7 +40,15 @@
         parents
         (recur p (into parents p))))))
 
+(defn count-bags [rules color]
+  (if-let [targets (get rules color)]
+    (->> targets
+         (map (fn [target]
+                (* (:num target)
+                   (count-bags rules (:color target)))))
+         (reduce + 1))
+    1))
+
 (defn run []
-  (-> (slurp-rules)
-      (all-parents "shiny gold")
-      count))
+  (let [rules (slurp-rules)]
+    (count-bags rules "shiny gold")))
