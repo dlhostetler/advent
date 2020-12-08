@@ -8,7 +8,7 @@
      :op (keyword op)
      :arg (Integer/parseInt arg)}))
 
-(defn instructions []
+(defn read-instructions []
   (->> "resources/2020/day8.input"
        io/reader
        line-seq
@@ -46,13 +46,34 @@
 
 (defn execute [instructions]
   (loop [{:keys [offset seen] :as state} (new-state)]
-    (if (seen? seen offset)
+    (cond
+      (>= offset (count instructions))
+      (do
+        (println "End.")
+        state)
+      (seen? seen offset)
       (do
         (println "Already seen" offset ", stopping.")
         state)
+      :else
       (recur (execute-instruction state
                                   (nth instructions offset))))))
 
+(defn flip [instruction]
+  (case (:op instruction)
+    :jmp (assoc instruction :op :nop)
+    :nop (assoc instruction :op :jmp)
+    ;; default (no change)
+    instruction))
+
+(defn success? [instructions {:keys [offset]}]
+  (= offset (count instructions)))
+
 (defn run []
-  (->> (instructions)
-       (execute)))
+  (let [instructions (read-instructions)]
+    (loop [i 0]
+      (println "==== Trying" i "====")
+      (let [state (execute (update instructions i flip))]
+        (if (success? instructions state)
+          state
+          (recur (inc i)))))))
