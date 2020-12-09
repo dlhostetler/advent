@@ -26,6 +26,30 @@
        first
        (nth numbers)))
 
+(defn valid-range [numbers target-num from]
+  (loop [to from
+         sum (nth numbers to)]
+    (cond
+      ;; this is the proper range
+      (= sum target-num)
+      [from to]
+      ;; ran out of numbers
+      (= to (dec (count numbers)))
+      nil
+      ;; the sum got too big
+      (< sum target-num)
+      (recur (inc to) (+ sum (nth numbers (inc to))))
+      :else
+      nil)))
+
+(defn find-sum-range [numbers target-num]
+  (->> (map #(valid-range numbers target-num %)
+            (range 0 (count numbers)))
+       (filter identity)
+       first))
+
 (defn run []
-  (let [numbers (read-numbers)]
-    (find-invalid-num numbers)))
+  (let [numbers (read-numbers)
+        [from to] (find-sum-range numbers (find-invalid-num numbers))
+        sum-numbers (subvec numbers from (inc to))]
+    (+ (apply min sum-numbers) (apply max sum-numbers))))
