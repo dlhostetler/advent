@@ -8,23 +8,17 @@
        (map #(Integer/parseInt %))
        (into #{})))
 
-(defn differences [joltages]
-  (map #(- %2 %1)
-       (butlast joltages)
-       (rest joltages)))
-
-(defn answer [difference-counts]
-  (* (get difference-counts 1)
-     (get difference-counts 3)))
+(def possibilities
+  (memoize (fn [adapters joltage]
+             (cond
+               (= joltage 0) 1
+               (< joltage 0) 0
+               (not (contains? adapters joltage)) 0
+               :else (+ (possibilities adapters (dec joltage))
+                        (possibilities adapters (- joltage 2))
+                        (possibilities adapters (- joltage 3)))))))
 
 (defn run []
   (let [adapters (read-adapters)
-        device-joltage (->> adapters
-                            (apply max)
-                            (+ 3))
-        joltages (concat [0] adapters [device-joltage])]
-    (->> joltages
-         (sort)
-         (differences)
-         (frequencies)
-         (answer))))
+        max-adapter (apply max adapters)]
+    (possibilities adapters max-adapter)))
