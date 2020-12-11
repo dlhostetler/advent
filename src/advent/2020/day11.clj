@@ -21,22 +21,35 @@
 (defn occupied? [seat]
   (= seat occupied-tile))
 
-(defn valid-row? [layout [row col]]
+(defn valid-row? [layout row]
   (and (>= row 0)
        (< row (count layout))))
 
-(defn valid-col? [layout [row col]]
+(defn valid-col? [layout col]
   (and (>= col 0)
        (< col (-> layout first count))))
+
+(defn seat-coords [layout [row col] [row-offset col-offset]]
+  (loop [r (+ row row-offset)
+         c (+ col col-offset)]
+    (cond
+      ;; went too far
+      (or (not (valid-row? layout r))
+          (not (valid-col? layout c)))
+      nil
+      ;; found seat
+      (not (floor? (seat-at layout r c)))
+      [r c]
+      ;; keep going
+      :else
+      (recur (+ r row-offset) (+ c col-offset)))))
 
 (defn neighbor-coords [layout row col]
   (->> (-> (combo/cartesian-product [-1 0 1] [-1 0 1])
            set
            (disj [0 0]))
-       (map (fn [[offset-y offset-x]]
-              [(+ row offset-y) (+ col offset-x)]))
-       (filter #(valid-row? layout %))
-       (filter #(valid-col? layout %))))
+       (map #(seat-coords layout [row col] %))
+       (filter identity)))
 
 (defn build-neighbors [layout]
   (->> (for [row (range (count layout))
@@ -59,7 +72,7 @@
       ;; If a seat is occupied (#) and four or more seats adjacent to it are
       ;; also occupied, the seat becomes empty.
       (and (occupied? seat)
-           (>= num-neighbors 4))
+           (>= num-neighbors 5))
       unoccupied-tile
       ;; Otherwise, the seat's state does not change.
       :else
