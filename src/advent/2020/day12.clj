@@ -1,5 +1,6 @@
 (ns advent.2020.day12
-  (:require [clojure.java.io :as io]
+  (:require [advent.seq :as seq]
+            [clojure.java.io :as io]
             [clojure.string :as str]))
 
 (def init-state {:coordinates [0 0]
@@ -27,20 +28,21 @@
       (Math/floor)
       int))
 
+;; dir is 0 (clockwise) or 1 (counter-clockwise)
 (defn rotate-waypoint-once [waypoint dir]
   (-> waypoint
       (update dir * -1)
       reverse
       vec))
 
+(defn waypoint-rotations [waypoint dir]
+  (seq/successive rotate-waypoint-once waypoint dir))
+
 (defn rotate-waypoint [waypoint degrees]
   (let [dir (if (pos? degrees) 0 1)]
-    (loop [w waypoint
-           n (degrees-to-times degrees)]
-      (if (pos? n)
-        (recur (rotate-waypoint-once w dir)
-               (dec n))
-        w))))
+    (->> (waypoint-rotations waypoint dir)
+         (drop (degrees-to-times degrees))
+         first)))
 
 (defmulti next-state
           (fn [state command]

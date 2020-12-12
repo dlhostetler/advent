@@ -1,5 +1,6 @@
 (ns advent.2020.day11
-  (:require [clojure.java.io :as io]
+  (:require [advent.seq :as seq]
+            [clojure.java.io :as io]
             [clojure.math.combinatorics :as combo]))
 
 (def floor-tile \.)
@@ -86,11 +87,6 @@
         tile
         (next-seat layout neighbors row col)))))
 
-(defn all-states [layout neighbors]
-  (lazy-seq
-    (cons layout
-          (all-states (next-layout layout neighbors) neighbors))))
-
 (defn occupado [layout]
   (->> layout
        flatten
@@ -106,6 +102,6 @@
 (defn run []
   (let [layout (parse-layout)
         neighbors (build-neighbors layout)]
-    (->> (all-states layout neighbors)
+    (->> (seq/successive next-layout layout neighbors)
          first-duplicate
          occupado)))
