@@ -3,9 +3,8 @@
             [clojure.string :as str]))
 
 (def init-state {:coordinates [0 0]
-                 :heading :e})
-
-(def cardinals [:e :s :w :n])
+                 :heading :e
+                 :waypoint [10 1]})
 
 (defn parse-direction [line]
   (let [[command value] (rest (re-matches #"([A-Z])(.+)" line))]
@@ -22,42 +21,53 @@
   [(+ (first coordinates) (first offset))
    (+ (second coordinates) (second offset))])
 
-(defn next-heading [heading degrees]
-  (let [current-index (.indexOf cardinals heading)
-        next-index (mod (-> degrees
-                            (/ 90)
-                            (Math/floor)
-                            int
-                            (+ current-index))
-                        (count cardinals))]
-    (nth cardinals next-index)))
+(defn degrees-to-times [degrees]
+  (-> (Math/abs ^int degrees)
+      (/ 90)
+      (Math/floor)
+      int))
+
+(defn rotate-waypoint-once [waypoint dir]
+  (-> waypoint
+      (update dir * -1)
+      reverse
+      vec))
+
+(defn rotate-waypoint [waypoint degrees]
+  (let [dir (if (pos? degrees) 0 1)]
+    (loop [w waypoint
+           n (degrees-to-times degrees)]
+      (if (pos? n)
+        (recur (rotate-waypoint-once w dir)
+               (dec n))
+        w))))
 
 (defmulti next-state
           (fn [state command]
             (:command command)))
 
 (defmethod next-state :e [state {:keys [value]}]
-  (update state :coordinates move [value 0]))
+  (update state :waypoint move [value 0]))
 
-(defmethod next-state :f [state command]
-  (next-state state
-              {:command (:heading state)
-               :value (:value command)}))
+(defmethod next-state :f [state {:keys [value]}]
+  (let [distance (map (partial * value)
+                      (:waypoint state))]
+    (update state :coordinates move distance)))
 
 (defmethod next-state :l [state {:keys [value]}]
-  (update state :heading next-heading (* value -1)))
+  (update state :waypoint rotate-waypoint (* value -1)))
 
 (defmethod next-state :n [state {:keys [value]}]
-  (update state :coordinates move [0 value]))
+  (update state :waypoint move [0 value]))
 
 (defmethod next-state :r [state {:keys [value]}]
-  (update state :heading next-heading value))
+  (update state :waypoint rotate-waypoint value))
 
 (defmethod next-state :s [state {:keys [value]}]
-  (update state :coordinates move [0 (* value -1)]))
+  (update state :waypoint move [0 (* value -1)]))
 
 (defmethod next-state :w [state {:keys [value]}]
-  (update state :coordinates move [(* value -1) 0]))
+  (update state :waypoint move [(* value -1) 0]))
 
 (defn travel [commands]
   (loop [state init-state
@@ -69,7 +79,7 @@
 (defn distance [state]
   (->> state
        :coordinates
-       (map #(Math/abs %))
+       (map #(Math/abs ^int %))
        (reduce +)))
 
 (defn run []
