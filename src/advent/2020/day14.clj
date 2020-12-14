@@ -31,14 +31,26 @@
        line-seq
        (map parse-instruction)))
 
-(defn bit-mask [mask-v v]
-  (if (= \X mask-v)
-    (str v)
-    (str mask-v)))
+(defn set-bit [address n bit]
+  (str (subs address 0 n)
+       bit
+       (subs address (inc n))))
 
-(defn masked [mask value]
-  (-> (map bit-mask mask value)
-      (str/join)))
+(defn mask-bit [mask address n]
+  (case (nth mask n)
+    \X
+    [(set-bit address n 0)
+     (set-bit address n 1)]
+    \0
+    [address]
+    \1
+    [(set-bit address n 1)]))
+
+(defn masked-addresses [mask address]
+  (reduce (fn [addresses n]
+            (mapcat #(mask-bit mask % n) addresses))
+          [address]
+          (range (count mask))))
 
 (defmulti execute-instruction
           (fn [state instruction]
@@ -48,9 +60,9 @@
   (assoc state :mask mask))
 
 (defmethod execute-instruction :mem [state {:keys [address value]}]
-  (assoc-in state
-            [:memory address]
-            (masked (:mask state) value)))
+  (reduce (fn [s a] (assoc-in s [:memory a] value))
+          state
+          (masked-addresses (:mask state) address)))
 
 (defn run []
   (->> (instructions)
