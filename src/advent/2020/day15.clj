@@ -6,28 +6,30 @@
   (->> (str/split "12,20,0,6,1,17,7" #",")
        (mapv #(Integer/parseInt %))))
 
-(defn next-state [state]
-  (let [n (-> state :numbers last)
-        n-idx (-> state :indices (get n))
-        current-idx (-> state :numbers count dec)
-        age (if n-idx (- current-idx n-idx) 0)]
+(defn next-state [{:keys [last num-spoken] :as state}]
+  (let [last-index (-> state :indices (get last))
+        age (if last-index (- num-spoken last-index) 0)]
     (-> state
-        (update :numbers conj age)
-        (update :indices assoc n current-idx))))
+        (update :indices assoc last num-spoken)
+        (assoc :last age)
+        (update :num-spoken inc))))
 
 (defn init-state [numbers]
-  {:numbers numbers
-   :indices (->> (for [[i n] (->> numbers
+  {:indices (->> (for [[i n] (->> numbers
                                   butlast
                                   (map-indexed vector))]
                    [n i])
-                 (into {}))})
+                 (into {}))
+   :last (last numbers)
+   :num-spoken (-> numbers count dec)})
+
 (defn run []
-  (let [start (input)]
+  (let [start (input)
+        target-spoken 30000000
+        remaining (->> start count (- target-spoken) inc)]
     (->> start
          init-state
          (seq/successive next-state)
-         (take (inc (- 2020 (count start))))
+         (take remaining)
          last
-         :numbers
-         last)))
+         :last)))
