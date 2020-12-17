@@ -6,7 +6,7 @@
 
 (def active-tile \#)
 (def inactive-tile \.)
-(def dimensions 3)
+(def dimensions 4)
 
 (defn pad-coords [coords]
   (->> (repeat (- dimensions (count coords)) 0)
