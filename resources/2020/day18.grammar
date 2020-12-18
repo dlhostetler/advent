@@ -1,5 +1,6 @@
 <expr> = arithmetic | nested
-arithmetic = (number | nested) (operator (number | nested))+
-<nested>= <'('> arithmetic <')'>
-operator = '+' | '*'
+<arithmetic> = add | multiply | number
+add = (number | nested) ( '+' ( add | nested | number ) )
+multiply = expr ( '*' expr )
+<nested> = <'('> arithmetic <')'>
 number = #'-?[0-9]+'

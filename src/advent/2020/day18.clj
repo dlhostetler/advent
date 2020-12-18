@@ -13,21 +13,9 @@
        io/reader
        line-seq))
 
-(defn calc [result [operator x]]
-  (case operator
-    :+
-    (+ result x)
-    :*
-    (* result x)))
-
 (def ast->result
-  {:arithmetic (fn [& expression]
-                 (let [start (first expression)]
-                   (->> expression
-                        rest
-                        (partition 2)
-                        (reduce calc start))))
-   :operator keyword
+  {:add (fn [x _ y] (+ x y))
+   :multiply (fn [x _ y] (* x y))
    :number read-string})
 
 (defn mathify [s]
