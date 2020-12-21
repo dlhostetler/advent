@@ -1,5 +1,6 @@
 (ns advent.2020.day21
   (:require [clojure.java.io :as io]
+            [clojure.set :as set]
             [clojure.string :as str]
             [plumbing.core :refer :all]))
 
@@ -34,12 +35,29 @@
        (remove #(invalid? required-freqs %))
        (into {})))
 
-(defn num-foods-for [foods ingredient]
-  (->> foods
-       (map :ingredients)
-       (map set)
-       (filter #(contains? % ingredient))
-       count))
+(defn one-to-one? [rules-by-index]
+  (->> rules-by-index
+       vals
+       (every? #(= 1 (count %)))))
+
+(defn rectify-allergen [ingredient->allergens allergen]
+  (->> (for [[ingredient allergens] ingredient->allergens]
+         [ingredient (if (> (count allergens) 1)
+                       (disj allergens allergen)
+                       allergens)])
+       (into {})))
+
+(defn done-allergens [ingredient->allergens]
+  (->> ingredient->allergens
+       vals
+       (filter #(= 1 (count %)))
+       (map first)))
+
+(defn rectify-allergens [ingredient->allergens]
+  (loop [i->a ingredient->allergens]
+    (if-not (one-to-one? i->a)
+      (recur (reduce rectify-allergen i->a (done-allergens i->a)))
+      i->a)))
 
 (defn run []
   (let [foods (parse-foods)
@@ -53,7 +71,18 @@
         safe-ingredients (->> ingredient->allergens
                               (remove val)
                               (map key)
-                              set)]
-    (->> safe-ingredients
-         (map #(num-foods-for foods %))
-         (reduce +))))
+                              set)
+        unsafe-ingredients (set/difference (-> ingredient->allergens
+                                               keys
+                                               set)
+                                           safe-ingredients)
+        allergen->ingredient (->> (select-keys ingredient->allergens unsafe-ingredients)
+                                  (map-vals set)
+                                  (rectify-allergens)
+                                  (map-vals first)
+                                  set/map-invert)]
+    (->> allergen->ingredient
+         keys
+         sort
+         (map allergen->ingredient)
+         (str/join ","))))
