@@ -1,52 +1,66 @@
-(ns advent.2020.day23
-  (:require [advent.seq :as seq]
-            [clojure.string :as str]
-            [plumbing.core :refer :all]))
+(ns advent.2020.day23)
+
+(def total-cups 1000000)
 
 (def cups (->> "523764819"
                seq
                (map str)
                (mapv #(Integer/parseInt %))))
 
-(defn grab-cups [cups]
-  [(into [(first cups)] (drop 4 cups))
-   (->> cups (drop 1) (take 3))])
+(defn link [cups [cup0 cup1]]
+  (assoc cups cup0 cup1))
 
-(defn next-destination [cups i]
-  (let [next-i (dec i)]
-    (if (zero? next-i) (count cups) next-i)))
+(defn linkify
+  "Create a map (really a vector) of cup values to the value of the next cup."
+  [cups]
+  (let [cup->cup (vec (repeat (-> cups count inc) nil))]
+    ;; each cup points to another cup
+    (-> (reduce link cup->cup (partition 2 1 cups))
+        (assoc
+          ;; the last cup points at the first cup
+          (last cups)
+          (first cups)
+          ;; the first index points at the first cup (there is no cup zero)
+          0
+          (first cups)))))
 
-(defn find-destination [cups]
-  (let [[current x y z] cups
-        invalid #{x y z}]
-    (loop [destination (next-destination cups current)]
-      (if (contains? invalid destination)
-        (recur (next-destination cups destination))
-        destination))))
+(defn find-destination [current invalid]
+  (loop [destination (dec current)]
+    (if (contains? invalid destination)
+      (recur (mod (dec destination) (inc total-cups)))
+      destination)))
 
-(defn drop-cups [remaining-cups moved destination]
-  (let [i (.indexOf remaining-cups destination)
-        [head tail] (split-at (inc i) remaining-cups)]
-    (concat head moved tail)))
+(defn move [cup->cup _]
+  (let [current (cup->cup 0)
+        grabbed0 (cup->cup current)
+        grabbed1 (cup->cup grabbed0)
+        grabbed2 (cup->cup grabbed1)
+        after-grabbed (cup->cup grabbed2)
+        destination (find-destination current #{grabbed0
+                                                grabbed1
+                                                grabbed2
+                                                0})
+        after-destination (cup->cup destination)]
+    (assoc cup->cup
+      ;; point index 0 (current) to the cup after the grabbed cups
+      0 after-grabbed
+      ;; point the current cup to the cup after the grabbed cups
+      current after-grabbed
+      ;; point the destination cup at the first grabbed cup
+      destination grabbed0
+      ;; point the last grabbed cup at the cup after the destination
+      grabbed2 after-destination)))
 
-(defn rotate [cups]
-  (conj (vec (rest cups)) (first cups)))
+(defn play [n cups]
+  (reduce move cups (range n)))
 
-(defn next-move [cups]
-  (let [destination (find-destination cups)
-        [remaining-cups moved] (grab-cups cups)]
-    (-> (drop-cups remaining-cups moved destination)
-        rotate)))
-
-(defn answer [cups]
-  (let [[head tail] (split-at (.indexOf cups 1) cups)]
-    (->> (concat (rest tail) head)
-         (map str)
-         (str/join))))
+(defn answer [cup->cup]
+  (->> [(cup->cup 1) (cup->cup (cup->cup 1))]
+       (reduce *)))
 
 (defn run []
-  (->> cups
-       (seq/successive next-move)
-       (take 101)
-       last
+  (->> (concat cups (range (-> cups count inc)
+                           (inc total-cups)))
+       linkify
+       (play 10000000)
        answer))
