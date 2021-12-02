@@ -13,19 +13,23 @@
     {:command (keyword command)
      :amount (Integer/parseInt n)}))
 
-(defn is-command [targetCommand]
-  (fn [{ command :command }]
-    (= command targetCommand)))
+(defmulti do-command
+          (fn [acc command]
+            (:command command)))
 
-(defn traveled [commands targetCommand]
-  (->> commands
-       (filter (is-command targetCommand))
-       (map :amount)
-       (reduce +)))
+(defmethod do-command :down [acc {amount :amount}]
+  (update acc :aim + amount))
+
+(defmethod do-command :forward [acc {amount :amount}]
+  (-> acc
+      (update :horizontal + amount)
+      (update :depth + (* amount (:aim acc)))))
+
+(defmethod do-command :up [acc {amount :amount}]
+  (update acc :aim - amount))
 
 (defn run []
-  (let [commands (map ->command (input))
-        horizontal (traveled commands :forward)
-        depth (- (traveled commands :down)
-                 (traveled commands :up))]
-    (* horizontal depth)))
+  (let [result (->> (input)
+                    (map ->command)
+                    (reduce do-command {:aim 0 :depth 0 :horizontal 0}))]
+    (* (:horizontal result) (:depth result))))
