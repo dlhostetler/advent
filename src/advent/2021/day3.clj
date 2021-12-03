@@ -3,34 +3,41 @@
             [clojure.string :as str]
             [plumbing.core :refer :all]))
 
-(defn ->bits [s]
-  (->> s
-       vec
-       (map str)
-       (map #(Integer/parseInt %))))
-
 (defn input []
-  (->> (-> "resources/2021/day3.input"
-           io/reader
-           slurp
-           (str/split #"\n"))
-       (map ->bits)))
+  (-> "resources/2021/day3.input"
+      io/reader
+      slurp
+      (str/split #"\n")))
 
-(defn transpose [m]
-  (apply mapv vector m))
-
-(defn ->bit-by-count [bits]
-  (->> bits
+(defn bit-counts [nums i]
+  (->> nums
+       (map #(nth % i))
+       (map str)
+       (map #(Integer/parseInt %))
        (group-by identity)
        (map-vals count)))
 
-(defn ->bit [comparison {zero-count 0 one-count 1}]
-  (if (comparison zero-count one-count) 1 0))
+(defn next-prefix [nums prefix comparison]
+  (let [i (count prefix)
+        {zero-count 0 one-count 1} (bit-counts nums i)]
+    (if (comparison zero-count one-count)
+      (str prefix "1")
+      (str prefix "0"))))
+
+(defn ->rating [nums comparison]
+  (loop [nums nums
+         prefix ""]
+    (if (> (count nums) 1)
+      (let [next-prefix (next-prefix nums prefix comparison)]
+        (recur (filter #(str/starts-with? % next-prefix) nums)
+               next-prefix))
+      (first nums))))
 
 (defn bits-to-int [bits]
   (Integer/parseInt (apply str bits) 2))
 
 (defn run []
-  (let [bits-by-count (->> (input) (transpose) (map ->bit-by-count))]
-    (* (bits-to-int (map (partial ->bit <=) bits-by-count)) ;; epsilon
-       (bits-to-int (map (partial ->bit >) bits-by-count))))) ;; gamma
+  (let [nums (input)
+        o2 (bits-to-int (->rating nums <=))
+        co2 (bits-to-int (->rating nums >))]
+    (* o2 co2)))
