@@ -48,6 +48,11 @@
          (reduce +)
          (* last-pick))))
 
+(defn lowest-max-pick [targets]
+  (->> targets
+       (sort-by :maxpick)
+       first))
+
 (defn run []
   (let [{boards :boards nums :nums} (input)
         picks (->> nums
@@ -55,11 +60,11 @@
                    (set/map-invert))
         targets (->> boards
                      (mapcat board2target)
-                     (map (partial ->score picks)))
-        lowest-max-pick (->> targets
-                             (map :maxpick)
-                             (apply min))
-        target (->> targets
-                    (filter #(= (:maxpick %) lowest-max-pick))
-                    first)]
-    (target->score nums target)))
+                     (map (partial ->score picks)))]
+    (->> targets
+         (group-by :board)
+         (map-vals lowest-max-pick)
+         vals
+         (sort-by :maxpick)
+         last
+         (target->score nums))))
