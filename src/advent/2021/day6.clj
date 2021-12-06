@@ -29,7 +29,7 @@
 (defn run []
   (->> (fishes)
        (seq/successive next-fisheses)
-       (drop 80)
+       (drop 256)
        first
        vals
        (reduce +)))
