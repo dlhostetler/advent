@@ -12,7 +12,8 @@
        (map #(Integer/parseInt %))))
 
 (defn crab->fuel [crab position]
-  (Math/abs ^long (- crab position)))
+  (let [n (Math/abs ^long (- crab position))]
+    (/ (* n (inc n)) 2)))
 
 (defn crabs->fuels [crabs position]
   (map #(crab->fuel % position) crabs))
