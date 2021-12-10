@@ -1,0 +1,11 @@
+expr = ( term | nested )+
+<term> = parens | squares | angles | curly
+<nested> = nested-parens | nested-squares | nested-angles | nested-curly
+parens = '()'
+<nested-parens> = <'('> expr <')'>
+squares = '[]'
+<nested-squares> = <'['> expr <']'>
+angles = '<>'
+<nested-angles> = <'<'> expr <'>'>
+curly = '{}'
+<nested-curly> = <'{'> expr <'}'>
