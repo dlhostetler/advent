@@ -24,12 +24,13 @@
        (grid/tx-points tx-octopus)
        (map-vals normalize-octopus)))
 
-(defn count-flashes [octopi]
-  (->> octopi vals (filter #(= 0 %)) count))
+(defn unsynchronized? [octopi]
+  (->> octopi vals (some #(not= 0 %))))
 
 (defn run []
   (->> orig-octopi
        (seq/successive next-state)
-       (take 101)
-       (map count-flashes)
-       (reduce +)))
+       (map-indexed vector)
+       (drop-while (comp unsynchronized? last))
+       first
+       first))
