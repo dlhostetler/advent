@@ -21,16 +21,24 @@
 (defn end? [node]
   (= node "end"))
 
-
 (defn visited? [path node]
   (some #(= node %) path))
 
+(defn double-visit? [path]
+  (->> path
+       (filter small-cave?)
+       (group-by identity)
+       vals
+       (map count)
+       (some #(> % 1))))
+
 (defn find-paths! [g path paths]
   (doseq [successor (graph/successors g (last path))
-        :when (not (start? successor))
-        :when (or (end? successor)
-                  (not (small-cave? successor))
-                  (not (visited? path successor)))]
+          :when (not (start? successor))
+          :when (or (end? successor)
+                    (not (small-cave? successor))
+                    (not (visited? path successor))
+                    (not (double-visit? path)))]
     (if (end? successor)
       (swap! paths conj (conj path successor))
       (find-paths! g (conj path successor) paths))))
