@@ -90,16 +90,16 @@
        (map dimension-fn)
        (apply agg-fn)))
 
-(defn- grid->max-y [grid]
+(defn grid->max-y [grid]
   (bound grid second max))
 
-(defn- grid->min-y [grid]
+(defn grid->min-y [grid]
   (bound grid second min))
 
-(defn- grid->max-x [grid]
+(defn grid->max-x [grid]
   (bound grid first max))
 
-(defn- grid->min-x [grid]
+(defn grid->min-x [grid]
   (bound grid first min))
 
 (defn print
@@ -125,4 +125,6 @@
        (core-print (if-let [out (when point (visualize-point point))]
                      out
                      empty-point)))
-     (println))))
+     (println))
+   (println)
+   grid))
