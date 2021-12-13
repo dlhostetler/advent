@@ -52,7 +52,4 @@
     (merge top bottom)))
 
 (defn run []
-  (-> full-paper
-      (fold (first all-folds))
-      #_(print-paper)
-      count))
+  (print-paper (reduce fold full-paper all-folds)))
