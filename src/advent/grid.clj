@@ -27,12 +27,12 @@
 ;; Neighbors
 ;; =========
 
-(defn- max-x [grid]
+(defn max-x [grid]
   (->> grid keys (map first) (apply max)))
 
 (alter-var-root #'max-x memoize)
 
-(defn- max-y [grid]
+(defn max-y [grid]
   (->> grid keys (map last) (apply max)))
 
 (alter-var-root #'max-y memoize)
@@ -47,11 +47,14 @@
 
 (alter-var-root #'valid-y? memoize)
 
+(defn- valid-point-or-nil [grid [x y]]
+  (when (and (valid-x? grid x) (valid-y? grid y))
+    [x y]))
+
 (defn- neighbor-point [grid [from-x from-y] [x-offset y-offset]]
   (loop [x (+ from-x x-offset)
          y (+ from-y y-offset)]
-    (when (and (valid-x? grid x) (valid-y? grid y))
-      [x y])))
+    (valid-point-or-nil grid [x y])))
 
 (defn eight-neighbors [grid point]
   (->> (-> (combo/cartesian-product [-1 0 1] [-1 0 1])
@@ -61,6 +64,28 @@
        (filter some?)))
 
 (alter-var-root #'eight-neighbors memoize)
+
+(defn east [point]
+  (update point 0 inc))
+
+(defn north [point]
+  (update point 1 dec))
+
+(defn south [point]
+  (update point 1 inc))
+
+(defn west [point]
+  (update point 0 dec))
+
+(defn cardinal-neighbors [grid point]
+  (->> [(north point)
+        (east point)
+        (south point)
+        (west point)]
+       (map #(valid-point-or-nil grid %))
+       (filter some?)))
+
+(alter-var-root #'cardinal-neighbors memoize)
 
 ;; Transformation
 ;; ==============
