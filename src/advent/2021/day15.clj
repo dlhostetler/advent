@@ -21,12 +21,32 @@
        (repeat point)
        (grid/cardinal-neighbors grid point)))
 
+(defn clamp-risk [risk]
+  (if (> risk 9)
+    (mod risk 9)
+    risk))
+
+(defn explode [max-x max-y [[x y] risk]]
+  (let [next-x (inc max-x)
+        next-y (inc max-y)]
+    (for [repeat-x (range 5)
+          repeat-y (range 5)
+          :let [plus-x (* repeat-x next-x)
+                plus-y (* repeat-y next-y)]]
+      [[(+ x plus-x) (+ y plus-y)]
+       (clamp-risk (+ risk repeat-x repeat-y))])))
+
 (defn run []
-  (let [wg (->> point->risk
+  (let [full-point->risk (->> point->risk
+                              (mapcat #(explode (grid/max-x point->risk)
+                                                (grid/max-y point->risk)
+                                                %))
+                              (into {}))
+        wg (->> full-point->risk
                 keys
-                (mapcat #(point->edges point->risk %))
+                (mapcat #(point->edges full-point->risk %))
                 (apply graph/weighted-digraph))
-        max-x (grid/max-x point->risk)
-        max-y (grid/max-y point->risk)
+        max-x (grid/max-x full-point->risk)
+        max-y (grid/max-y full-point->risk)
         [_ cost] (graph.alg/dijkstra-path-dist wg [0 0] [max-x max-y])]
     cost))
