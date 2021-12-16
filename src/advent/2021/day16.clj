@@ -121,15 +121,45 @@
       (parse-subpackets-by-num-bits packet message)
       (parse-subpackets-by-num-subpackets packet message))))
 
+;; Calc
+;; ====
+
+(defmulti calc :type)
+
+(defn subpackets->values [{:keys [packets]}]
+  (mapv calc packets))
+
+(defmethod calc 0 [packet]                                  ;; sum
+  (reduce + (subpackets->values packet)))
+
+(defmethod calc 1 [packet]                                  ;; product
+  (reduce * (subpackets->values packet)))
+
+(defmethod calc 2 [packet]                                  ;; minimum
+  (reduce min (subpackets->values packet)))
+
+(defmethod calc 3 [packet]                                  ;; maximum
+  (reduce max (subpackets->values packet)))
+
+(defmethod calc 4 [packet]                                  ;; literal
+  (:value packet))
+
+(defmethod calc 5 [packet]                                  ;; greater than
+  (let [[a b] (subpackets->values packet)]
+    (if (> a b) 1 0)))
+
+(defmethod calc 6 [packet]                                  ;; less than
+  (let [[a b] (subpackets->values packet)]
+    (if (< a b) 1 0)))
+
+(defmethod calc 7 [packet]                                  ;; equal to
+  (let [[a b] (subpackets->values packet)]
+    (if (= a b) 1 0)))
+
 ;; Run
 ;; ===
-
-(defn version-sum [{:keys [packets version]
-                    :or {packets []
-                         version 0}}]
-  (apply + version (map version-sum packets)))
 
 (defn run []
   (->> input
        parse-hex-packet
-       version-sum))
+       calc))
