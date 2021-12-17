@@ -45,14 +45,8 @@
         y (range from-y to-y)]
     [x y]))
 
-(defn highest-y [path]
-  (->> path
-       (map last)
-       (reduce max)))
-
 (defn run []
-  (->> (velocities 0 1000 0 1000)
+  (->> (velocities 0 1000 -1000 1000)
        (map path)
        (filter in-target?)
-       (map highest-y)
-       (reduce max)))
+       count))
