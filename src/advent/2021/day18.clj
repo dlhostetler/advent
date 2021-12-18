@@ -1,5 +1,6 @@
 (ns advent.2021.day18
-  (:require [plumbing.core :refer :all]))
+  (:require [clojure.math.combinatorics :as combo]
+            [plumbing.core :refer :all]))
 
 (def homework
   [[[[3, 9], [7, 2]], [[8, 4], [[5, 6], 0]]]
@@ -154,7 +155,7 @@
     (when (>= x 10) [(int (/ x 2)) (int (Math/ceil (/ x 2)))])
     (split-branches x)))
 
-(defn add [a b]
+(defn add [[a b]]
   (loop [x [a b]]
     (if-let [changed (or (explode x) (split x))]
       (recur changed)
@@ -167,6 +168,7 @@
        (* 2 (-> x last magnitude)))))
 
 (defn run []
-  (->> homework
-       (reduce add)
-       magnitude))
+  (->> (combo/permuted-combinations homework 2)
+       (map add)
+       (map magnitude)
+       (reduce max)))
