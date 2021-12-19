@@ -1,5 +1,6 @@
 (ns advent.2021.day19
   (:require [clojure.java.io :as io]
+            [clojure.math.combinatorics :as combo]
             [clojure.set :as set]
             [clojure.string :as str]
             [plumbing.core :refer :all]))
@@ -113,9 +114,13 @@
       (recur (match-next state))
       (:translated state))))
 
+(defn manhattan [[coords-a coords-b]]
+  (->> (coords-diff coords-a coords-b)
+       (map #(Math/abs ^int %))
+       (reduce +)))
+
 (defn run []
-  (->> scans
-       translate-scanners
-       (mapcat :translated-scan)
-       set
-       count))
+  (->> (-> (map :scanner-at (translate-scanners scans))
+           (combo/combinations 2))
+       (map manhattan)
+       (reduce max)))
