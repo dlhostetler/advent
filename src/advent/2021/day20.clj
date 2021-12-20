@@ -74,7 +74,7 @@
 
 (defn run []
   (->> (-> input-image
-           (enhance 2)
+           (enhance 50)
            #_(grid/print-> str {:y-dir :top-down}))
        (filter light-pixel?)
        count))
