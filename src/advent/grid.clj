@@ -16,12 +16,16 @@
                     (nth x))])
        (into {})))
 
+(defn lines->grid [lines]
+  (->> lines
+       (mapv vec)
+       by-coordinates))
+
 (defn slurp [resource]
   (->> resource
        io/reader
        line-seq
-       (mapv vec)
-       by-coordinates))
+       lines->grid))
 
 
 ;; Neighbors
@@ -151,5 +155,8 @@
                      out
                      empty-point)))
      (println))
-   (println)
-   grid))
+   (println)))
+
+(defn print-> [grid visualize-point options]
+  (print grid visualize-point options)
+  grid)
