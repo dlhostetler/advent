@@ -1,34 +1,19 @@
 (ns advent.2021.day21
-  (:require [advent.seq :as seq]
-            [plumbing.core :refer :all]))
+  (:require [plumbing.core :refer :all]))
 
 (def player-1-start 10)
 (def player-2-start 7)
 
-(def die-vals (range 100))
+(def roll->times
+  {3 1
+   4 3
+   5 6
+   6 7
+   7 6
+   8 3
+   9 1})
 
-(defn player-won? [state player]
-  (>= (get-in state [player :score]) 1000))
-
-(defn winner [state]
-  (cond
-    (player-won? state :player-1)
-    :player-1
-    (player-won? state :player-2)
-    :player-2
-    :else
-    nil))
-
-(defn loser [state]
-  (when-let [player (winner state)]
-    (if (= player :player-1) :player-2 :player-1)))
-
-(defn continue? [state]
-  (not (winner state)))
-
-(defn next-roll [{:keys [rolls] :as state}]
-  [(inc (nth die-vals (mod rolls 100)))
-   (update state :rolls inc)])
+(declare play)
 
 (defn clamp-space [space]
   (if (> space 10)
@@ -38,33 +23,28 @@
 (defn update-score [{:keys [space] :as player-state}]
   (update player-state :score + space))
 
-(defn player-turn [state player]
-  (if (continue? state)
-    (let [[r1 state] (next-roll state)
-          [r2 state] (next-roll state)
-          [r3 state] (next-roll state)]
-      (-> state
-          (update-in [player :space] + r1 r2 r3)
-          (update-in [player :space] clamp-space)
-          (update player update-score)))
-    state))
+(defn player-turn [player roll]
+  (-> player
+      (update :space + roll)
+      (update :space clamp-space)
+      update-score))
 
-(defn turn [state]
-  (-> state
-      (player-turn :player-1)
-      (player-turn :player-2)))
+(defn split-universe
+  [player-1 player-2 previous-wins [roll times]]
+  (->> (player-turn player-1 roll)
+       (play player-2)
+       reverse
+       (map * (repeat times))
+       (mapv + previous-wins)))
 
-(defn answer [state]
-  (* (get-in state [(loser state) :score])
-     (:rolls state)))
+(defn play [player-1 player-2]
+  (if (< (:score player-2) 21)
+    (reduce (partial split-universe player-1 player-2) [0 0] roll->times)
+    [0 1]))
+
+(alter-var-root #'play memoize)
 
 (defn run []
-  (->> {:player-1 {:score 0
-                   :space player-1-start}
-        :player-2 {:score 0
-                   :space player-2-start}
-        :rolls 0}
-       (seq/successive turn)
-       (drop-while continue?)
-       first
-       answer))
+  (->> (play {:score 0 :space player-1-start}
+             {:score 0 :space player-2-start})
+       (reduce max)))
