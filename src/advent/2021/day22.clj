@@ -1,6 +1,5 @@
 (ns advent.2021.day22
   (:require [clojure.java.io :as io]
-            [clojure.set :as set]
             [plumbing.core :refer :all]))
 
 (def line-regex #"(on|off) x=(.+)\.\.(.+),y=(.+)\.\.(.+),z=(.+)\.\.(.+)")
@@ -25,24 +24,81 @@
        line-seq
        (map parse-line)))
 
-(defn confined-range [from to]
-  (range (if (< from -50) -50 from)
-         (if (> to 51) 51 to)))
+(defn x0 [cuboid]
+  (-> cuboid :x first))
 
-(defn ->cuboid [[from-x to-x] [from-y to-y] [from-z to-z]]
-  (->> (for [x (confined-range from-x to-x)
-             y (confined-range from-y to-y)
-             z (confined-range from-z to-z)]
-         [x y z])
-       (into #{})))
+(defn x1 [cuboid]
+  (-> cuboid :x last))
 
-(defn do-step [cubes {:keys [on? x y z]}]
-  (let [cuboid (->cuboid x y z)]
-    (if on?
-      (set/union cubes cuboid)
-      (set/difference cubes cuboid))))
+(defn y0 [cuboid]
+  (-> cuboid :y first))
+
+(defn y1 [cuboid]
+  (-> cuboid :y last))
+
+(defn z0 [cuboid]
+  (-> cuboid :z first))
+
+(defn z1 [cuboid]
+  (-> cuboid :z last))
+
+(defn cuboid-contains? [a b]
+  (and (<= (x0 a) (x0 b)) (>= (x1 a) (x1 b))
+       (<= (y0 a) (y0 b)) (>= (y1 a) (y1 b))
+       (<= (z0 a) (z0 b)) (>= (z1 a) (z1 b))))
+
+(defn cuboid-intersects? [a b]
+  (and (<= (x0 a) (x1 b)) (>= (x1 a) (x0 b))
+       (<= (y0 a) (y1 b)) (>= (y1 a) (y0 b))
+       (<= (z0 a) (z1 b)) (>= (z1 a) (z0 a))))
+
+(defn volume [{:keys [x y z]}]
+  (* (->> x reverse (reduce -))
+     (->> y reverse (reduce -))
+     (->> z reverse (reduce -))))
+
+(defn in-cuboid? [cuboid v from to]
+  (< (from cuboid) v (to cuboid)))
+
+(defn splits [a b from to]
+  (let [first-split (from b)
+        second-split (to b)]
+    (cond-> [(from a)]
+            (in-cuboid? a first-split from to) (conj first-split)
+            (in-cuboid? a second-split from to) (conj second-split)
+            true (conj (to a)))))
+
+(defn chunks [a b from to]
+  (->> (splits a b from to)
+       (partition 2 1)
+       (map vec)))
+
+(defn split [a b]
+  (for [x (chunks a b x0 x1)
+        y (chunks a b y0 y1)
+        z (chunks a b z0 z1)]
+    {:x x :y y :z z}))
+
+(defn cuboid-subtract [a b]
+  (cond
+    (cuboid-contains? b a)
+    []
+    (not (cuboid-intersects? a b))
+    [a]
+    :else
+    (->> (split a b)
+         (remove #(cuboid-contains? b %))
+         (into []))))
+
+(defn do-step [cuboids {:keys [on?] :as step}]
+  (let [cuboid (dissoc step :on?)]
+    (cond-> (->> cuboids
+                 (mapcat #(cuboid-subtract % cuboid))
+                 (into []))
+            on? (conj cuboid))))
 
 (defn run []
   (->> steps
-       (reduce do-step #{})
-       count))
+       (reduce do-step [])
+       (map volume)
+       (reduce +)))
