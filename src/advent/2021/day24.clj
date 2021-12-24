@@ -64,7 +64,7 @@
        zero?))
 
 (def digit-possibilities
-  (range 9 0 -1))
+  (range 1 10))
 
 (defn ->partial-model-numbers []
   (for [x0 digit-possibilities
