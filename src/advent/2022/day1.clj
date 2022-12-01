@@ -15,4 +15,7 @@
   (->> (str/split input #"\n\n")
        (map parse-inventory)
        (map #(reduce + %))
-       (reduce max)))
+       sort
+       reverse
+       (take 3)
+       (reduce +)))
