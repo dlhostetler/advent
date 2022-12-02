@@ -10,33 +10,41 @@
 (def c->rps
   {"A" :rock
    "B" :paper
-   "C" :scissors
-   "X" :rock
-   "Y" :paper
-   "Z" :scissors})
+   "C" :scissors})
+
+(def c->outcome
+  {"X" :lose
+   "Y" :draw
+   "Z" :win})
+
+(def outcome->score
+  {:lose 0
+   :draw 3
+   :win 6})
 
 (def rps->score
   {:rock 1
    :paper 2
    :scissors 3})
 
-(def round->score
-  {[:rock :rock] 3
-   [:rock :paper] 6
-   [:rock :scissors] 0
-   [:paper :rock] 0
-   [:paper :paper] 3
-   [:paper :scissors] 6
-   [:scissors :rock] 6
-   [:scissors :paper] 0
-   [:scissors :scissors] 3})
+(def round->me
+  {[:rock :lose] :scissors
+   [:rock :draw] :rock
+   [:rock :win] :paper
+   [:paper :lose] :rock
+   [:paper :draw] :paper
+   [:paper :win] :scissors
+   [:scissors :lose] :paper
+   [:scissors :draw] :scissors
+   [:scissors :win] :rock})
 
 (defn parse-round [s]
-  (let [[opp me :as play] (->> (str/split s #" ")
-                               (map c->rps))]
-    {:me me
+  (let [[col0 col1] (str/split s #" ")
+        opp (c->rps col0)
+        outcome (c->outcome col1)]
+    {:me (round->me [opp outcome])
      :opponent opp
-     :score (round->score play)}))
+     :score (outcome->score outcome)}))
 
 (defn calc-score [round]
   (+ (-> round :me rps->score) (:score round)))
