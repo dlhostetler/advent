@@ -9,9 +9,7 @@
       line-seq))
 
 (defn parse-rucksack [s]
-  (->> (seq s)
-       (split-at (-> s count (/ 2)))
-       (map set)))
+  (-> s seq set))
 
 (defn common-item [rucksack]
   (first (apply set/intersection rucksack)))
@@ -26,6 +24,7 @@
 (defn run []
   (->> input
        (map parse-rucksack)
+       (partition-all 3)
        (map common-item)
        (map priority)
        (reduce +)))
