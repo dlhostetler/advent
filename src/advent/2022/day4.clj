@@ -19,17 +19,16 @@
 (defn parse-sections [pair]
   (map parse-section pair))
 
-(defn fully-contained? [sections]
-  (let [x (apply set/intersection sections)]
-    (->> sections
-         (map #(= x %))
-         (filter identity)
-         first)))
+(defn overlap? [sections]
+  (->> sections
+       (apply set/intersection)
+       empty?
+       not))
 
 (defn run []
   (->> input
        (map parse-pairs)
        (map parse-sections)
-       (map fully-contained?)
+       (map overlap?)
        (filter identity)
        count))
