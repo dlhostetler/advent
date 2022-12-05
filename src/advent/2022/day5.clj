@@ -63,7 +63,6 @@
         to-stack (nth stacks to)
         moved (->> from-stack
                    (take amount)
-                   reverse
                    vec)]
     (-> stacks
         (assoc to (into moved to-stack))
