@@ -1,7 +1,7 @@
 (ns advent.2022.day6
   (:require [plumbing.core :refer :all]))
 
-(def marker-length 4)
+(def marker-length 14)
 
 (def input
   (slurp "resources/2022/day6.input"))
