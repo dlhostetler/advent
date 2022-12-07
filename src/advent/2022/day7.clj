@@ -1,5 +1,6 @@
 (ns advent.2022.day7
   (:require [clojure.java.io :as io]
+            [clojure.pprint :as pprint]
             [clojure.string :as str]
             [plumbing.core :refer :all]))
 
@@ -65,26 +66,34 @@
          subpaths (->> (get-in all-files path)
                        (filter dir?)
                        (map first)
-                       (map conj (repeat path)))
+                       (map conj (repeat path))
+                       (into #{}))
          descendant-sizes (apply merge
                                  (mapv (partial dir-sizes all-files sizes)
                                        subpaths))]
      (-> sizes
          (merge descendant-sizes)
-         (assoc (str/join "/" path)
+         (assoc path
                 (+ (->> files (map last) (reduce +))
-                   (reduce + (map last descendant-sizes))))))))
+                   (->> descendant-sizes
+                        (filter #(contains? subpaths (first %)))
+                        (map last)
+                        (reduce +))))))))
 
-(defn at-most-100k? [[_ size]]
-  (<= size 100000))
 
 (defn run []
-  (->> input
-       (partition-at command?)
-       (map parse-command)
-       (reduce build-fs init-fs)
-       :files
-       dir-sizes
-       (filter at-most-100k?)
-       (map last)
-       (reduce +)))
+  (let [sizes (->> input
+                   (partition-at command?)
+                   (map parse-command)
+                   (reduce build-fs init-fs)
+                   :files
+                   dir-sizes)
+        used (get sizes ["/"])
+        unused (- 70000000 used)
+        need (- 30000000 unused)]
+    (->> sizes
+         (map last)
+         sort
+         (partition-by #(> % need))
+         last
+         first)))
