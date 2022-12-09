@@ -4,7 +4,7 @@
             [clojure.string :as str]
             [plumbing.core :refer :all]))
 
-(defn parse-position [s]
+(defn parse-movement [s]
   (let [[direction amount] (str/split s #" ")]
     (repeat (Integer/parseInt amount) (keyword direction))))
 
@@ -12,12 +12,12 @@
   (->> "resources/2022/day9.input"
        io/reader
        line-seq
-       (mapcat parse-position)))
+       (mapcat parse-movement)))
 
 (def init-state
   {:head [0 0]
-   :head-dirs head-dirs
-   :tail [0 0]})
+   :dirs head-dirs
+   :tails (repeat 9 [0 0])})
 
 (def dir->coord
   {:L 0
@@ -49,25 +49,40 @@
     (mapv adjust-offset-value offset)
     [0 0]))
 
-(defn adjust-tail [{head :head tail :tail :as state}]
-  (let [offset (mapv - head tail)]
-    (update state :tail #(mapv + (adjust-offset offset) %))))
+(defn adjust-knot [knot prev-knot]
+  (let [offset (mapv - prev-knot knot)]
+    (mapv + knot (adjust-offset offset))))
 
-(defn next-state* [state]
-  (let [dir (-> state :head-dirs first)]
+(defn adjust-tails [tails head]
+  (loop [prev-knot head
+         tails-to-adjust tails
+         adjusted-tails []]
+    (if (empty? tails-to-adjust)
+      adjusted-tails
+      (let [knot (-> tails-to-adjust
+                     first
+                     (adjust-knot prev-knot))]
+        (recur knot
+               (rest tails-to-adjust)
+               (conj adjusted-tails knot))))))
+
+(defn next-state* [{head :head :as state}]
+  (let [dir (-> state :dirs first)
+        next-head (update head (dir->coord dir) (dir->op dir) 1)]
     (-> state
-        (update-in [:head (dir->coord dir)] (dir->op dir) 1)
-        (update :head-dirs rest)
-        adjust-tail)))
+        (assoc :head next-head)
+        (update :tails adjust-tails next-head)
+        (update :dirs rest))))
 
 (defn next-state [state]
-  (when (not (empty? (:head-dirs state)))
+  (when (not (empty? (:dirs state)))
     (next-state* state)))
 
 (defn run []
   (->> init-state
        (seq/successive next-state)
        (take-while identity)
-       (map :tail)
+       (map :tails)
+       (map last)
        set
        count))
