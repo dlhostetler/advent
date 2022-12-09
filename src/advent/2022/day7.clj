@@ -1,6 +1,6 @@
 (ns advent.2022.day7
-  (:require [clojure.java.io :as io]
-            [clojure.pprint :as pprint]
+  (:require [advent.seq :as seq]
+            [clojure.java.io :as io]
             [clojure.string :as str]
             [plumbing.core :refer :all]))
 
@@ -11,14 +11,6 @@
   (-> "resources/2022/day7.input"
       io/reader
       line-seq))
-
-(defn partition-at
-  "Like partition-by but will start a new run when f returns true"
-  [f coll]
-  (lazy-seq
-    (when-let [s (seq coll)]
-      (let [run (cons (first s) (take-while #(not (f %)) (rest s)))]
-        (cons run (partition-at f (drop (count run) s)))))))
 
 (defn command? [s]
   (str/starts-with? s "$"))
@@ -83,7 +75,7 @@
 
 (defn run []
   (let [sizes (->> input
-                   (partition-at command?)
+                   (seq/partition-at command?)
                    (map parse-command)
                    (reduce build-fs init-fs)
                    :files

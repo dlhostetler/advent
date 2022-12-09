@@ -27,9 +27,8 @@
        line-seq
        lines->grid))
 
-
-;; Neighbors
-;; =========
+;; Edges
+;; =====
 
 (defn max-x [grid]
   (->> grid keys (map first) (apply max)))
@@ -41,19 +40,32 @@
 
 (alter-var-root #'max-y memoize)
 
+(defn min-x [grid]
+  (->> grid keys (map first) (apply min)))
+
+(alter-var-root #'min-x memoize)
+
+(defn min-y [grid]
+  (->> grid keys (map last) (apply min)))
+
+(alter-var-root #'min-y memoize)
+
 (defn- valid-x? [grid x]
-  (and (>= x 0) (<= x (max-x grid))))
+  (and (>= x (min-y grid)) (<= x (max-x grid))))
 
 (alter-var-root #'valid-x? memoize)
 
 (defn- valid-y? [grid y]
-  (and (>= y 0) (<= y (max-y grid))))
+  (and (>= y (min-y grid)) (<= y (max-y grid))))
 
 (alter-var-root #'valid-y? memoize)
 
 (defn- valid-point-or-nil [grid [x y]]
   (when (and (valid-x? grid x) (valid-y? grid y))
     [x y]))
+
+;; Neighbors
+;; =========
 
 (defn- neighbor-point [grid [from-x from-y] [x-offset y-offset]]
   (loop [x (+ from-x x-offset)
@@ -88,6 +100,24 @@
         (west point)]
        (map #(valid-point-or-nil grid %))
        (filter some?)))
+
+(defn points-east [grid [from-x from-y]]
+  (for [x (range (inc from-x) (-> grid max-x inc))]
+    [x from-y]))
+
+(defn points-north [grid [from-x from-y]]
+  (-> (for [y (range (min-y grid) from-y)]
+        [from-x y])
+      reverse))
+
+(defn points-south [grid [from-x from-y]]
+  (for [y (range (inc from-y) (-> grid max-y inc))]
+    [from-x y]))
+
+(defn points-west [grid [from-x from-y]]
+  (-> (for [x (range (min-x grid) from-x)]
+        [x from-y])
+      reverse))
 
 (alter-var-root #'cardinal-neighbors memoize)
 
