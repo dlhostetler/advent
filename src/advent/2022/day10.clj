@@ -38,19 +38,22 @@
   (when (not (empty? (:instructions state)))
     (next-cycle* state)))
 
-(defn signal-strength-at [n cycles]
-  (->> cycles
-       (drop (dec n))
-       first
-       :signal-strength))
+(defn draw-into [buffer {cycle-num :cycle-num x :x}]
+  (let [ray-x (dec cycle-num)
+        row-x (mod ray-x 40)]
+    (if (or (= row-x (dec x))
+            (= row-x x)
+            (= row-x (inc x)))
+      (assoc buffer ray-x "#")
+      buffer)))
 
 (defn run []
   (let [cycles (->> init-state
                     (seq/successive next-cycle)
-                    (take-while identity))]
-    (+ (signal-strength-at 20 cycles)
-       (signal-strength-at 60 cycles)
-       (signal-strength-at 100 cycles)
-       (signal-strength-at 140 cycles)
-       (signal-strength-at 180 cycles)
-       (signal-strength-at 220 cycles))))
+                    (take-while identity))
+        buffer (->> (repeat 240 " ")
+                    (into []))]
+    (->> cycles
+         (reduce draw-into buffer)
+         (partition-all 40)
+         (map #(apply str %)))))
