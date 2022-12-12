@@ -31,6 +31,9 @@
     :else
     (- (-> v name first int) (int \a))))
 
+(defn starting-point? [[_ v]]
+  (zero? (height-value v)))
+
 (defn valid-destination? [heights from to]
   (let [from-n (-> from heights height-value)
         to-n (-> to heights height-value)
@@ -43,9 +46,15 @@
                   (filter #(valid-destination? heights from %)))]
     [from edge]))
 
+(defn path-distance-from [g from]
+  (->> (graph.alg/bf-path g from end-at) count dec))
+
 (defn run []
   (let [edges (mapcat (partial edges heights) heights)
         g (apply graph/digraph edges)]
-    (->> (graph.alg/bf-path g start-at end-at)
-         count
-         dec)))
+    (->> heights
+         (filter starting-point?)
+         (map first)
+         (map (partial path-distance-from g))
+         (filter pos?)
+         (reduce min))))
