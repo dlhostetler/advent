@@ -5,16 +5,12 @@
 
 (declare ordered?)
 
-(defn parse-pair [s]
-  (->> (str/split s #"\n")
-       (map read-string)))
-
 (def input
-  (->> (-> "resources/2022/day13.input"
-           io/reader
-           slurp
-           (str/split #"\n\n"))
-       (mapv parse-pair)))
+  (->> "resources/2022/day13.input"
+       io/reader
+       line-seq
+       (remove empty?)
+       (map read-string)))
 
 (defn ordered-ints? [left right]
   (cond
@@ -38,25 +34,24 @@
         (nil? r)
         false
         :else
-        (let [o? (ordered? [l r])]
+        (let [o? (ordered? l r)]
           (if (nil? o?)
             (recur (rest left) (rest right))
             o?))))))
 
-(defn ordered?
-  ([[left right]]
-   (if (or (vector? left) (vector? right))
-     (ordered-lists? left right)
-     (ordered-ints? left right))))
+(defn ordered? [left right]
+  (if (or (vector? left) (vector? right))
+    (ordered-lists? left right)
+    (ordered-ints? left right)))
+
+(defn divider-packet? [packet]
+  (or (= packet [[2]])
+      (= packet [[6]])))
 
 (defn run []
-  #_(->> input
-       (drop 1)
-       first
-       ordered?)
-  (->> input
-       (map ordered?)
+  (->> (into input [[[2]] [[6]]])
+       (sort ordered?)
        (map-indexed (fn [i b] [(inc i) b]))
-       (filter last)
+       (filter (comp divider-packet? last))
        (map first)
-       (reduce +)))
+       (reduce *)))
