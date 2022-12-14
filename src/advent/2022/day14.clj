@@ -29,7 +29,7 @@
        (mapcat parse-path)
        (into {})))
 
-(def abyss-y (grid/max-y init-grid))
+(def floor-y (+ (grid/max-y init-grid) 2))
 
 (def init-state
   {:falling-at sand-source
@@ -45,16 +45,21 @@
                :padding 0
                :y-dir :top-down}))
 
+(defn empty-point? [grid point]
+  (when point
+    (and (nil? (grid point))
+         (< (last point) floor-y))))
+
 (defn next-state [{falling-at :falling-at grid :grid :as state}]
   (cond
     ;; move down
-    (nil? (grid (grid/south falling-at)))
+    (empty-point? grid (grid/south falling-at))
     (assoc state :falling-at (grid/south falling-at))
     ;; move down-left
-    (nil? (grid (grid/southwest falling-at)))
+    (empty-point? grid (grid/southwest falling-at))
     (assoc state :falling-at (grid/southwest falling-at))
     ;; move down-right
-    (nil? (grid (grid/southeast falling-at)))
+    (empty-point? grid (grid/southeast falling-at))
     (assoc state :falling-at (grid/southeast falling-at))
     ;; stop
     (= falling-at sand-source)
@@ -67,15 +72,16 @@
         (assoc-in [:grid falling-at] :sand)
         (assoc :falling-at sand-source))))
 
-(defn falling-into-abyss? [{falling-at :falling-at}]
-  (> (last falling-at) abyss-y))
+(defn falling? [{falling-at :falling-at}]
+  (not (nil? falling-at)))
 
 (defn run []
   (->> init-state
        (seq/successive next-state)
-       (take-while (comp not falling-into-abyss?))
+       (take-while falling?)
        last
        :grid
        (map last)
        (filter #(= :sand %))
-       count))
+       count
+       inc))

@@ -82,22 +82,22 @@
 (alter-var-root #'eight-neighbors memoize)
 
 (defn east [point]
-  (update point 0 inc))
+  (when point (update point 0 inc)))
 
 (defn north [point]
-  (update point 1 dec))
+  (when point (update point 1 dec)))
 
 (defn south [point]
-  (update point 1 inc))
+  (when point (update point 1 inc)))
 
 (defn southeast [point]
-  (-> point (update 0 inc) (update 1 inc)))
+  (when point (-> point (update 0 inc) (update 1 inc))))
 
 (defn southwest [point]
-  (-> point (update 0 dec) (update 1 inc)))
+  (when point (-> point (update 0 dec) (update 1 inc))))
 
 (defn west [point]
-  (update point 0 dec))
+  (when point (update point 0 dec)))
 
 (defn cardinal-neighbors [grid point]
   (->> [(north point)
