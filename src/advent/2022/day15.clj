@@ -1,12 +1,8 @@
 (ns advent.2022.day15
   (:require [clojure.java.io :as io]
-            [clojure.set :as set]
             [plumbing.core :refer :all]))
 
-(def target-y 2000000)
-
-(defn target-y? [[_ y]]
-  (= y target-y))
+(def target-range 4000000)
 
 (defn parse-line [s]
   (let [[_ xb yb xs ys] (re-matches #"Sensor at x=(.+), y=(.+): closest beacon is at x=(.+), y=(.+)" s)]
@@ -28,26 +24,37 @@
        (map parse-line)
        (into {})))
 
-(def beacon-xs (->> sensor->beacon
-                    (map last)
-                    (filter target-y?)
-                    (map last)
-                    set))
-
-(defn to-x-range [[[xs ys :as sensor] beacon]]
+(defn possible-points [[[xs ys :as sensor] beacon]]
   (let [d (manhattan sensor beacon)
-        r (- d (Math/abs ^long (- target-y ys)))]
-    (when (>= r 0)
-      [(- xs r) (+ xs r)])))
+        d+1 (inc d)]
+    (for [x-dir (range -1 (inc 1))
+          y-dir (range -1 (inc 1))
+          xd (range 0 (inc d+1))
+          :let [yd (- d+1 xd)
+                x (* (+ xs xd) x-dir)
+                y (* (+ ys yd) y-dir)]
+          :when (not (or (< x 0)
+                         (> x target-range)
+                         (< y 0)
+                         (> y target-range)))]
+      [x y])))
 
-(defn explode-range [[from to]]
-  (set (range from (inc to))))
+(defn closer-than-sensed? [possible-beacon [sensor beacon]]
+  (let [real-beacon-distance (manhattan sensor beacon)
+        possible-beacon-distance (manhattan sensor possible-beacon)]
+    (<= possible-beacon-distance real-beacon-distance)))
+
+(defn new-beacon? [possible-beacon]
+  (->> sensor->beacon
+       (map (partial closer-than-sensed? possible-beacon))
+       (every? false?)))
+
+(defn tuning-frequency [[x y]]
+  (+ (* x 4000000) y))
 
 (defn run []
   (->> sensor->beacon
-       (map to-x-range)
-       (filter some?)
-       (map explode-range)
-       (apply set/union)
-       (#(set/difference % beacon-xs))
-       count))
+       (mapcat possible-points)
+       (filter new-beacon?)
+       first
+       tuning-frequency))
