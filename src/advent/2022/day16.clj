@@ -1,10 +1,13 @@
 (ns advent.2022.day16
-  (:require [clojure.java.io :as io]
+  (:require [clojure.math.combinatorics :as combo]
+            [clojure.java.io :as io]
             [clojure.set :as set]
             [clojure.string :as str]
             [loom.graph :as graph]
             [loom.alg :as graph.alg]
             [plumbing.core :refer :all]))
+
+(def target-minutes 26)
 
 (defn parse-line [s]
   (let [[_ from flow-rate to-str] (re-matches #"Valve (.+) has flow rate=(.+); tunnels? leads? to valves? (.+)" s)]
@@ -55,38 +58,69 @@
        (map valve->flow-rate)
        (reduce +)))
 
+(defn open [closed]
+  (set/difference target-valves closed))
+
 (alter-var-root #'current-pressure memoize)
 
-(defn max-pressure [at closed minutes total-pressure]
-  (let [p (current-pressure closed)]
-    (cond
-      ;; none left
-      (empty? closed)
-      (+ total-pressure (* p (- 31 minutes)))
+(defn build-valves->pressure
+  ([at closed minutes total-pressure]
+   (build-valves->pressure {} at closed minutes total-pressure))
+  ([valves->pressure at closed minutes total-pressure]
+   (let [p (current-pressure closed)]
+     (cond
+       ;; none left
+       (empty? closed)
+       (update valves->pressure
+               (open closed)
+               (fnil max 0)
+               (+ total-pressure (* p (- (inc target-minutes) minutes))))
 
-      ;; no more minutes
-      (> minutes 30)
-      total-pressure
+       ;; no more minutes
+       (> minutes target-minutes)
+       (update valves->pressure closed (fnil max 0) total-pressure)
 
-      ;; at closed valve, open
-      (closed at)
-      (recur at (disj closed at) (inc minutes) (+ total-pressure p))
+       ;; at closed valve, open
+       (closed at)
+       (recur valves->pressure
+              at
+              (disj closed at)
+              (inc minutes)
+              (+ total-pressure p))
 
-      ;; try to move to next valve
-      :else
-      (->> closed
-           (map (fn [valve]
-                  (let [move-cost (minutes-to-valve at valve)]
-                    (if (< (+ minutes move-cost) 30)
-                      (max-pressure valve
-                                    closed
-                                    (+ minutes move-cost)
-                                    (+ total-pressure (* p move-cost)))
-                      (+ total-pressure (* p (- 31 minutes)))))))
-           (remove nil?)
-           (reduce max 0)))))
+       ;; try to move to next valve
+       :else
+       (->> closed
+            (map (fn [valve]
+                   (let [move-cost (minutes-to-valve at valve)]
+                     (if (< (+ minutes move-cost) target-minutes)
+                       (build-valves->pressure valves->pressure
+                                               valve
+                                               closed
+                                               (+ minutes move-cost)
+                                               (+ total-pressure (* p move-cost)))
+                       (update valves->pressure
+                               (open closed)
+                               (fnil max 0)
+                               (+ total-pressure (* p (- (inc target-minutes) minutes))))))))
+            (apply merge-with max))))))
 
-(alter-var-root #'max-pressure memoize)
+(alter-var-root #'build-valves->pressure memoize)
+
+(defn disjoint? [[valves0 valves1]]
+  (empty? (set/intersection valves0 valves1)))
+
+(defonce valves->pressure (build-valves->pressure :AA target-valves 1 0))
+
+(defn combined-pressure [valves]
+  (->> valves
+       (map valves->pressure)
+       (reduce +)))
 
 (defn run []
-  (max-pressure :AA target-valves 1 0))
+  (->> (-> valves->pressure
+           keys
+           (combo/combinations 2))
+       (filter disjoint?)
+       (map combined-pressure)
+       (reduce max)))
