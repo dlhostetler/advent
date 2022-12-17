@@ -50,12 +50,13 @@
 
 (alter-var-root #'min-y memoize)
 
-(defn- valid-x? [grid x]
+(defn valid-x? [grid x]
   (and (>= x (min-y grid)) (<= x (max-x grid))))
 
 (alter-var-root #'valid-x? memoize)
 
-(defn- valid-y? [grid y]
+(defn valid-y? [grid y]
+  (println "valid-y?" (min-y grid) y (max-y grid))
   (and (>= y (min-y grid)) (<= y (max-y grid))))
 
 (alter-var-root #'valid-y? memoize)
@@ -180,18 +181,19 @@
                                  y-dir]
                           :or {empty-point "."
                                padding 1}}]
-   (doseq [y (cond-> (range (- (or min-y (grid->min-y grid)) padding)
-                            (inc (+ (or max-y (grid->max-y grid)) padding)))
-                     (not= :top-down y-dir)
-                     reverse)]
-     (doseq [x (range (- (or min-x (grid->min-x grid)) padding)
-                      (inc (+ (or max-x (grid->max-x grid)) padding)))
-             :let [point (get grid [x y] default)]]
-       (core-print (if-let [out (when point (visualize-point point))]
-                     out
-                     empty-point)))
-     (println))
-   (println)))
+   (when-not (empty? grid)
+     (doseq [y (cond-> (range (- (or min-y (grid->min-y grid)) padding)
+                              (inc (+ (or max-y (grid->max-y grid)) padding)))
+                       (not= :top-down y-dir)
+                       reverse)]
+       (doseq [x (range (- (or min-x (grid->min-x grid)) padding)
+                        (inc (+ (or max-x (grid->max-x grid)) padding)))
+               :let [point (get grid [x y] default)]]
+         (core-print (if-let [out (when point (visualize-point point))]
+                       out
+                       empty-point)))
+       (println))
+     (println))))
 
 (defn print-> [grid visualize-point options]
   (print grid visualize-point options)
