@@ -107,13 +107,14 @@
            (map #(blueprint->max-geodes (dec minutes) (conj blueprints %)))
            (reduce max-geodes)))))
 
-(defn quality-level [blueprint]
-  (* (:num blueprint) (get-in blueprint [:ingredients :geode])))
+(defn geodes [blueprint]
+  (get-in blueprint [:ingredients :geode]))
 
 (defn run []
   (->> init-blueprints
+       (take 3)
        (map vector)
-       (pmap (partial blueprint->max-geodes 24))
+       (pmap (partial blueprint->max-geodes 32))
        (map last)
-       (map quality-level)
-       (reduce +)))
+       (map geodes)
+       (reduce *)))
