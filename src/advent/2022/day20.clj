@@ -3,12 +3,14 @@
             [plumbing.core :refer :all])
   (:import (java.util LinkedList)))
 
+(def decrypt-key 811589153)
+
 (def numbers
   (->> "resources/2022/day20.input"
        io/reader
        line-seq
        (map #(Integer/parseInt %))
-       (map-indexed (fn [i n] {:i i :n n}))))
+       (map-indexed (fn [i n] {:i i :n (* n decrypt-key)}))))
 
 (defn into-list [^LinkedList numbers n]
   (.add numbers n)
@@ -28,6 +30,12 @@
     #_(println (seq numbers))
     numbers))
 
+(defn mix-times [mixed times]
+  (if (zero? times)
+    mixed
+    (recur (reduce mix mixed numbers)
+           (dec times))))
+
 (defn coordinates [^LinkedList numbers]
   (let [zero-index (->> numbers
                         (map-indexed vector)
@@ -40,7 +48,6 @@
          (into []))))
 
 (defn run []
-  (->> numbers
-       (reduce mix (list-of numbers))
+  (->> (mix-times (list-of numbers) 10)
        coordinates
        (reduce +)))
