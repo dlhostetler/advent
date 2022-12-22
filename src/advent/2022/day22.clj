@@ -3,6 +3,7 @@
             [clojure.java.io :as io]
             [clojure.string :as str]
             [plumbing.core :refer :all]))
+
 (def input
   (->> "resources/2022/day22.input"
        io/reader
@@ -25,41 +26,24 @@
     (Integer/parseInt i)
     (catch Exception _ i)))
 
-(defn ->path [{heading :heading :as state} next]
-  (if (int? next)
-    (-> state
-        (update :path into (repeat next heading)))
-    (-> state
-        (update :heading
-                (if (= next "R")
-                  {:east :south
-                   :north :east
-                   :south :west
-                   :west :north}
-                  {:east :north
-                   :north :west
-                   :south :east
-                   :west :south})))))
-
 (def path
   (->> (str/split input #"\n\n")
        last
        (re-seq #"([0-9]+|[LR])")
        (map first)
        (map parse-int)
-       (reduce ->path {:heading :east :path []})
-       :path))
+       (map (fn [x] (if (int? x) x (keyword x))))))
 
-(defn display-> [grid]
-  (grid/print-> grid
-                {:here "@"
-                 :nothing " "
-                 :open "."
-                 :rock "#"}
-                {:default :nothing
-                 :empty-point " "
-                 :padding 0
-                 :y-dir :top-down}))
+(defn display [grid]
+  (grid/print grid
+              {:here "@"
+               :nothing " "
+               :open "."
+               :rock "#"}
+              {:default :nothing
+               :empty-point " "
+               :padding 0
+               :y-dir :top-down}))
 
 (def start-at
   (->> grid
@@ -68,88 +52,119 @@
        sort
        first))
 
-(defn max-x-at-y [grid y]
-  (->> grid
-       keys
-       (filter (comp (partial = y) last))
-       (map first)
-       (apply max)))
+(defn turn [facing l-or-r]
+  (get (if (= l-or-r :R)
+         {:east :south
+          :north :east
+          :south :west
+          :west :north}
+         {:east :north
+          :north :west
+          :south :east
+          :west :south})
+       facing))
 
-(alter-var-root #'max-x-at-y memoize)
+(alter-var-root #'turn memoize)
 
-(defn max-y-at-x [grid x]
-  (->> grid
-       keys
-       (filter (comp (partial = x) first))
-       (map last)
-       (apply max)))
+(defn walk-east [[[x y :as at] facing]]
+  (cond
+    ;; 2->4
+    (and (= x 149))
+    [[99 (- 149 y)] :west]
+    ;; 3->2
+    (and (= x 99)
+         (<= 50 y 99))
+    [[(+ y 50) 49] :north]
+    ;; 4->2
+    (and (= x 99)
+         (<= 100 y 149))
+    [[149 (- 149 y)] :west]
+    ;; 6->4
+    (and (= x 49)
+         (<= 150 y 199))
+    [[(- y 100) 149] :north]
+    :else
+    [(grid/east at) facing]))
 
-(alter-var-root #'max-y-at-x memoize)
+(defn walk-north [[[x y :as at] facing]]
+  (cond
+    ;; 1->6
+    (and (<= 50 x 99)
+         (= y 0))
+    [[0 (+ x 100)] :east]
+    ;; 2->6
+    (and (<= 100 x 149)
+         (= y 0))
+    [[(- x 100) 199] :north]
+    ;; 5->3
+    (and (<= 0 x 49)
+         (= y 100))
+    [[50 (+ x 50)] :east]
+    :else
+    [(grid/north at) facing]))
 
-(defn min-x-at-y [grid y]
-  (->> grid
-       keys
-       (filter (comp (partial = y) last))
-       (map first)
-       (apply min)))
+(defn walk-south [[[x y :as at] facing]]
+  (cond
+    ;; 2->3
+    (and (<= 100 x 149)
+         (= y 49))
+    [[99 (- x 50)] :west]
+    ;; 4->6
+    (and (<= 50 x 99)
+         (= y 149))
+    [[49 (+ x 100)] :west]
+    ;; 6->2
+    (and (= y 199))
+    [[(+ x 100) 0] :south]
+    :else
+    [(grid/south at) facing]))
 
-(alter-var-root #'min-x-at-y memoize)
+(defn walk-west [[[x y :as at] facing]]
+  (cond
+    ;; 1->5
+    (and (= x 50)
+         (<= 0 y 49))
+    [[0 (- 149 y)] :east]
+    ;; 3->5
+    (and (= x 50)
+         (<= 50 y 99))
+    [[(- y 50) 100] :south]
+    ;; 5->1
+    (and (= x 0)
+         (<= 100 y 149))
+    [[50 (- 149 y)] :east]
+    ;; 6->1
+    (and (= x 0)
+         (<= 150 y 199))
+    [[(- y 100) 0] :south]
+    :else
+    [(grid/west at) facing]))
 
-(defn min-y-at-x [grid x]
-  (->> grid
-       keys
-       (filter (comp (partial = x) first))
-       (map last)
-       (apply min)))
+(defn forward [grid [at facing :as current] n]
+  #_(println "moving" facing "from" at)
+  (if (zero? n)
+    current
+    (let [[to :as next] (case facing
+                          :east (walk-east current)
+                          :north (walk-north current)
+                          :south (walk-south current)
+                          :west (walk-west current))]
+      (when-not (get grid to)
+        (display (assoc grid at :here))
+        (throw (Exception. (str "invalid to " to))))
+      (if (= (get grid to) :rock)
+        current
+        (recur grid next (dec n))))))
 
-(alter-var-root #'min-y-at-x memoize)
+(defn walk-path [grid current n-or-turn]
+  (if (int? n-or-turn)
+    (forward grid current n-or-turn)
+    (update current 1 turn n-or-turn)))
 
-(defn wrap-x [grid [x y]]
-  (let [min-x (min-x-at-y grid y)
-        max-x (max-x-at-y grid y)]
-    (cond
-      (< x min-x)
-      [max-x y]
-
-      (> x max-x)
-      [min-x y]
-
-      :else
-      [x y])))
-
-(alter-var-root #'wrap-x memoize)
-
-(defn wrap-y [grid [x y]]
-  (let [min-y (min-y-at-x grid x)
-        max-y (max-y-at-x grid x)]
-    (cond
-      (< y min-y)
-      [x max-y]
-
-      (> y max-y)
-      [x min-y]
-
-      :else
-      [x y])))
-
-(alter-var-root #'wrap-y memoize)
-
-(defn walk-path [grid from dir]
-  #_(println "move" dir "from" from)
-  (let [to (case dir
-             :east (wrap-x grid (grid/east from))
-             :north (wrap-y grid (grid/north from))
-             :south (wrap-y grid (grid/south from))
-             :west (wrap-x grid (grid/west from)))]
-    (if (= (get grid to) :rock)
-      from
-      to)))
-
-(defn password [[x y]]
+(defn password [[[x y] facing]]
   (+ (* (inc y) 1000)
      (* (inc x) 4)
-     (->> path
-          last
+     (->> facing
           {:east 0
            :north 3
            :south 1
@@ -157,6 +172,6 @@
 
 (defn run []
   (->> path
-       (reduce (partial walk-path grid) start-at)
+       (reduce (partial walk-path grid) [start-at :east])
        #_display->
        password))
