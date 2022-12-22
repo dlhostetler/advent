@@ -56,7 +56,6 @@
 (alter-var-root #'valid-x? memoize)
 
 (defn valid-y? [grid y]
-  (println "valid-y?" (min-y grid) y (max-y grid))
   (and (>= y (min-y grid)) (<= y (max-y grid))))
 
 (alter-var-root #'valid-y? memoize)
