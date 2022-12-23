@@ -74,25 +74,17 @@
     (reduce apply-move elves moves)))
 
 (defn do-rounds
-  ([n elves] (do-rounds n 0 elves))
-  ([n i elves]
-   (if (= i n)
-     elves
-     (let [directions (->> round-directions
-                           (drop (mod i 4))
-                           (take 4))]
-       (recur n (inc i) (round directions elves))))))
-
-(defn empty-tiles [elves]
-  (let [min-x (->> elves (map first) (reduce min))
-        max-x (->> elves (map first) (reduce max))
-        min-y (->> elves (map last) (reduce min))
-        max-y (->> elves (map last) (reduce max))
-        area (* (inc (- max-x min-x)) (inc (- max-y min-y)))]
-    (- area (count elves))))
+  ([elves] (do-rounds 0 elves))
+  ([i elves]
+   (let [directions (->> round-directions
+                         (drop (mod i 4))
+                         (take 4))
+         moved-elves (round directions elves)]
+     (if (not= elves moved-elves)
+       (recur (inc i) moved-elves)
+       (inc i)))))
 
 (defn run []
   (->> init-elves
-       (do-rounds 10)
-       empty-tiles
+       do-rounds
        #_display))
