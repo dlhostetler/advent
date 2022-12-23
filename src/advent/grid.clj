@@ -87,6 +87,12 @@
 (defn north [point]
   (when point (update point 1 dec)))
 
+(defn northeast [point]
+  (when point (-> point (update 0 inc) (update 1 dec))))
+
+(defn northwest [point]
+  (when point (-> point (update 0 dec) (update 1 dec))))
+
 (defn south [point]
   (when point (update point 1 inc)))
 
