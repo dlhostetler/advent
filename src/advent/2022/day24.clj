@@ -1,8 +1,6 @@
 (ns advent.2022.day24
   (:require [advent.grid :as grid]
             [clojure.java.io :as io]
-            [clojure.pprint :as pprint]
-            [clojure.set :as set]
             [plumbing.core :refer :all]))
 
 (def init-grid
@@ -98,8 +96,8 @@
 (alter-var-root #'move-all-blizzards memoize)
 
 (defn min-path
-  ([grid] (min-path 0 [start-at] grid))
-  ([path-length froms grid]
+  ([start end grid] (min-path 0 [start] end grid))
+  ([path-length froms end grid]
    (let [next-grid (move-all-blizzards grid)
          tos (->> (for [from froms
                         dir [:south :east :north :west nil]
@@ -112,11 +110,12 @@
                         :when (valid-destination? next-grid to)]
                     to)
                   (into #{}))]
-     (if (contains? tos end-at)
-       (inc path-length)
-       (recur (inc path-length) tos next-grid)))))
-
-(alter-var-root #'min-path memoize)
+     (if (contains? tos end)
+       [(inc path-length) next-grid]
+       (recur (inc path-length) tos end next-grid)))))
 
 (defn run []
-  (min-path init-grid))
+  (let [[trip0-minutes trip0-grid] (time (min-path start-at end-at init-grid))
+        [trip1-minutes trip1-grid] (time (min-path end-at start-at trip0-grid))
+        [trip2-minutes _] (time (min-path start-at end-at trip1-grid))]
+    (+ trip0-minutes trip1-minutes trip2-minutes)))
