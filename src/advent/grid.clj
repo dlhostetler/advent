@@ -60,9 +60,11 @@
 
 (alter-var-root #'valid-y? memoize)
 
-(defn- valid-point-or-nil [grid [x y]]
+(defn valid-point-or-nil [grid [x y]]
   (when (and (valid-x? grid x) (valid-y? grid y))
     [x y]))
+
+(alter-var-root #'valid-point-or-nil memoize)
 
 ;; Neighbors
 ;; =========
