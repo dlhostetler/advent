@@ -21,17 +21,16 @@
                   (map str/trim)
                   (mapv parse-round))}))
 
-(defn possible-round? [{red :red green :green blue :blue}]
-  (and (if red (<= red 12) true)
-       (if green (<= green 13) true)
-       (if blue (<= blue 14) true)))
+(defn ->fewest-cubes [{rounds :rounds :as game}]
+  (assoc game :fewest (apply merge-with max rounds)))
 
-(defn possible-game? [{rounds :rounds}]
-  (every? possible-round? rounds))
+(defn power [{fewest :fewest}]
+  (let [{red :red green :green blue :blue} fewest]
+    (* red green blue)))
 
 (defn run []
   (->> input
        (map parse-game)
-       (filter possible-game?)
-       (map :id)
+       (map ->fewest-cubes)
+       (map power)
        (reduce +)))
