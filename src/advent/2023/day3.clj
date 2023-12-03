@@ -9,6 +9,9 @@
        (remove (comp (partial = ".") last))
        (into {})))
 
+(defn gear-point? [point]
+  (= (input point) "*"))
+
 (defn digits? [s]
   (and s (every? #(Character/isDigit %) s)))
 
@@ -51,10 +54,33 @@
        (apply str)
        Integer/parseInt))
 
+(defn adjacent-gear [point]
+  (->> (grid/eight-neighbors input point)
+       (filter gear-point?)
+       first))
+
+(defn points->gear-point [points]
+  (some adjacent-gear points))
+
+(defn into-map [m [gear-point points]]
+  (update m gear-point (fnil conj []) points))
+
+(defn gear-4-realz? [[gear-point number-points]]
+  (= (count number-points) 2))
+
 (defn run []
-  (->> input
-       (filter part-number-digit?)
-       (map digit->points)
-       (into #{})
-       (map points->number)
-       (reduce +)))
+  (let [number-points (->> input
+                           (filter part-number-digit?)
+                           (map digit->points)
+                           (into #{}))
+        gears->numbers (->> (for [points number-points
+                                  :let [gear-point (points->gear-point points)]
+                                  :when gear-point]
+                              [gear-point (points->number points)])
+                            (reduce into-map {})
+                            (filter gear-4-realz?)
+                            (into {}))]
+    (->> gears->numbers
+         vals
+         (map #(apply * %))
+         (reduce +))))
