@@ -25,6 +25,8 @@
 
 (def seeds (-> input first s->longs))
 
+(def seed-pairs (map vec (partition 2 seeds)))
+
 (defn parse-map [s]
   (let [lines (str/split s #"\n")
         [_ from to] (->> lines
@@ -54,7 +56,19 @@
 (defn seed->location [n]
   (reduce lookup n path-pairs))
 
+(defn min-location [[start len]]
+  (loop [i 0
+         location nil]
+    (when (zero? (mod i 1000000))
+      (println start "." i))
+    (let [l (seed->location (+ start i))]
+      (if (< i len)
+        (recur (inc i) (if location (min location l) l))
+        (do
+          (println "min location for" start "is" location)
+          location)))))
+
 (defn run []
-  (->> seeds
-       (map seed->location)
+  (->> seed-pairs
+       (pmap min-location)
        (reduce min)))
