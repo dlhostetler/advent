@@ -2,22 +2,12 @@
   (:require [plumbing.core :refer :all]))
 
 (def test-input
-  [{:distance 9
-    :time 7}
-   {:distance 40
-    :time 15}
-   {:distance 200
-    :time 30}])
+  [{:distance 940200
+    :time 71530}])
 
 (def input
-  [{:distance 298
-    :time 49}
-   {:distance 1185
-    :time 78}
-   {:distance 1066
-    :time 79}
-   {:distance 1181
-    :time 80}])
+  [{:distance 298118510661181
+    :time 49787980}])
 
 (defn ->distances [{time :time}]
   (for [t (range (inc time))]
