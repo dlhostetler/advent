@@ -21,7 +21,8 @@
                     :four-of-a-kind 5
                     :five-of-a-kind 6})
 
-(def card->ranking {\2 2
+(def card->ranking {\J 1
+                    \2 2
                     \3 3
                     \4 4
                     \5 5
@@ -30,7 +31,6 @@
                     \8 8
                     \9 9
                     \T 10
-                    \J 11
                     \Q 12
                     \K 13
                     \A 14})
@@ -49,9 +49,19 @@
       (= 2 (first char-counts)) :one-pair
       :else :high-card)))
 
+(defn cards->type-wild [cards]
+  (let [replacements (for [card (keys card->ranking)
+                            :when (not= card \J)]
+                        (str/replace cards \J card))]
+    (->> replacements
+         (map cards->type)
+         (sort-by type->ranking)
+         reverse
+         first)))
+
 (defn compare-hand [[cards0] [cards1]]
-  (let [type-result (compare (-> cards0 cards->type type->ranking)
-                             (-> cards1 cards->type type->ranking))]
+  (let [type-result (compare (-> cards0 cards->type-wild type->ranking)
+                             (-> cards1 cards->type-wild type->ranking))]
     (if (zero? type-result)
       (compare (mapv card->ranking cards0)
                (mapv card->ranking cards1))
