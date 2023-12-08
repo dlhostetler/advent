@@ -1,5 +1,6 @@
 (ns advent.2023.day8
-  (:require [advent.seq :as seq]
+  (:require [advent.math :as math]
+            [advent.seq :as seq]
             [clojure.java.io :as io]
             [clojure.string :as str]
             [plumbing.core :refer :all]))
@@ -31,12 +32,24 @@
     {:at-node (get graph [at-node next-instruction])
      :steps (inc steps)}))
 
-(defn not-at-zzz? [{at-node :at-node}]
-  (not= "ZZZ" at-node))
+(defn not-at-*z? [{at-node :at-node}]
+  (not (str/ends-with? at-node "Z")))
 
-(defn run []
-  (->> {:at-node "AAA"
+(defn num-steps [from]
+  (->> {:at-node from
         :steps 0}
        (seq/successive next-node)
-       (take-while not-at-zzz?)
+       (take-while not-at-*z?)
        count))
+
+(defn starting-nodes []
+  (->> graph
+       keys
+       (map first)
+       (filter #(str/ends-with? % "A"))
+       (into #{})))
+
+(defn run []
+  (->> (starting-nodes)
+       (map num-steps)
+       (reduce math/lcm)))
