@@ -27,10 +27,13 @@
   (->> history
        (seq/successive next-sequence)
        (seq/take-while+1 not-all-zeros?)
-       (map last)))
+       (map first)))
+
+(defn prev [x z]
+  (- z x))
 
 (defn next-value [pattern]
-  (reduce + 0 pattern))
+  (reduce prev pattern))
 
 (defn run []
   (->> histories
