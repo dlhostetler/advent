@@ -5,12 +5,21 @@
             [loom.alg :as graph.alg]
             [plumbing.core :refer :all]))
 
-(def tiles
+(def wall-tiles #{"L", "J", "|", "S"})
+
+(defn empty-tile? [[_ tile]]
+  (= "." tile))
+
+(def all-tiles
   (->> (-> "resources/2023/day10.input"
            io/reader
            grid/slurp)
        (map-vals str)
-       (remove (comp #(= "." %) val))
+       (into {})))
+
+(def tiles
+  (->> all-tiles
+       (remove empty-tile?)
        (into {})))
 
 (def s-point
@@ -59,10 +68,18 @@
          (into [])
          (concat edges))))
 
-(defn distance [g from to]
-  (if-let [path (graph.alg/bf-path g from to)]
-    (dec (count path))
-    0))
+(defn num-west-walls [loop-points [x y]]
+  (->> loop-points
+       (filter (fn [[loop-point-x loop-point-y]]
+                 (and (= loop-point-y y)
+                      (< loop-point-x x))))
+       (map tiles)
+       (filter wall-tiles)
+       count))
+
+(defn inside? [loop-points point]
+  (num-west-walls loop-points point)
+  (odd? (num-west-walls loop-points point)))
 
 (defn run []
   (let [edges (->> tiles
@@ -72,8 +89,9 @@
         loop-points (->> (graph.alg/scc g)
                          (map set)
                          (filter #(% s-point))
-                         first)
-        point->distance (pmap (partial distance g)
-                              (repeat s-point)
-                              loop-points)]
-    (reduce max point->distance)))
+                         first)]
+    (->> all-tiles
+         keys
+         (remove loop-points)
+         (filter (partial inside? loop-points))
+         count)))
