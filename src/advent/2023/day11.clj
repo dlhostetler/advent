@@ -3,6 +3,7 @@
             [clojure.java.io :as io]
             [clojure.math.combinatorics :as combo]
             [plumbing.core :refer :all]))
+(def expansion (dec 1000000))
 
 (def empty-space \.)
 (def galaxy-space \#)
@@ -23,62 +24,65 @@
          [x y])
        (every? (partial empty-at? universe))))
 
-(defn expand-col [universe target-x]
-  (let [target-x+1 (inc target-x)
-        new-col (into {}
-                      (for [y (range (inc (grid/max-y universe)))]
-                        [[target-x+1 y] empty-space]))]
-    (->> universe
-         (map-keys (fn [[x y]]
-                     (if (> x target-x) [(inc x) y] [x y])))
-         (merge new-col))))
-
-(defn expand-cols
+(defn empty-cols
   ([universe]
-   (expand-cols universe (grid/max-x universe)))
-  ([universe x]
+   (empty-cols universe [] (grid/max-x universe)))
+  ([universe empties x]
    (if (>= x 0)
-     (recur (if (empty-col? universe x)
-              (expand-col universe x)
-              universe)
+     (recur universe
+            (if (empty-col? universe x)
+              (conj empties x)
+              empties)
             (dec x))
-     universe)))
+     empties)))
+
+(defn expand-col [galaxies target-x]
+  (into #{}
+        (for [[x y :as galaxy] galaxies]
+          (if (> x target-x)
+            [(+ x expansion) y]
+            galaxy))))
+
+(defn expand-cols [galaxies]
+  (reduce expand-col galaxies (empty-cols initial-universe)))
 
 (defn empty-row? [universe y]
   (->> (for [x (range (inc (grid/max-x universe)))]
          [x y])
        (every? (partial empty-at? universe))))
 
-(defn expand-row [universe target-y]
-  (let [target-y+1 (inc target-y)
-        new-row (into {}
-                      (for [x (range (inc (grid/max-x universe)))]
-                        [[x target-y+1] empty-space]))]
-    (->> universe
-         (map-keys (fn [[x y]]
-                     (if (> y target-y) [x (inc y)] [x y])))
-         (merge new-row))))
-
-(defn expand-rows
+(defn empty-rows
   ([universe]
-   (expand-rows universe (grid/max-y universe)))
-  ([universe y]
+   (empty-rows universe [] (grid/max-y universe)))
+  ([universe empties y]
    (if (>= y 0)
-     (recur (if (empty-row? universe y)
-              (expand-row universe y)
-              universe)
+     (recur universe
+            (if (empty-row? universe y)
+              (conj empties y)
+              empties)
             (dec y))
-     universe)))
+     empties)))
 
-(defn expand-universe [universe]
-  (-> universe
+(defn expand-row [galaxies target-y]
+  (into #{}
+        (for [[x y :as galaxy] galaxies]
+          (if (> y target-y)
+            [x (+ y expansion)]
+            galaxy))))
+
+(defn expand-rows [galaxies]
+  (reduce expand-row galaxies (empty-rows initial-universe)))
+
+(defn expand-universe [galaxies]
+  (-> galaxies
       expand-cols
       expand-rows))
 
 (defn ->galaxies [universe]
   (->> universe
        (filter galaxy?)
-       (map first)))
+       (map first)
+       (into #{})))
 
 (defn coords-diff [point0 point1]
   (mapv - point0 point1))
@@ -89,8 +93,10 @@
        (reduce +)))
 
 (defn run []
-  (let [universe (expand-universe initial-universe)
-        galactic-pairs (-> universe ->galaxies (combo/combinations 2))]
+  (let [galaxies (-> initial-universe
+                     (->galaxies)
+                     expand-universe)
+        galactic-pairs (combo/combinations galaxies 2)]
     (println "there are" (count galactic-pairs) "pairs")
     (->> galactic-pairs
          (pmap pair-manhattan)
