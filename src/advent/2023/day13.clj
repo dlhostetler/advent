@@ -12,6 +12,11 @@
        (map #(str/split % #"\n"))
        (map grid/lines->grid)))
 
+(defn count-differences [v0 v1]
+  (->> (map = v0 v1)
+       (remove true?)
+       count))
+
 (defn split-at-x [mirror x]
   (let [splits (->> mirror
                     (group-by (fn [[point]]
@@ -35,7 +40,9 @@
                         (range (grid/max-x left) (dec (grid/min-x left)) -1))
         right-cols (cols right
                          (range (grid/min-x right) (inc (grid/max-x right))))]
-    (every? true? (map = left-cols right-cols))))
+    (->> (map count-differences left-cols right-cols)
+         (reduce +)
+         (= 1))))
 
 (defn mirrored-at-x [mirror]
   (->> (for [x (range (inc (grid/min-x mirror))
@@ -67,7 +74,9 @@
                        (range (grid/max-y top) (dec (grid/min-y top)) -1))
         bottom-rows (rows bottom
                           (range (grid/min-y bottom) (inc (grid/max-y bottom))))]
-    (every? true? (map = top-rows bottom-rows))))
+    (->> (map count-differences top-rows bottom-rows)
+         (reduce +)
+         (= 1))))
 
 (defn mirrored-at-y [mirror]
   (->> (for [y (range (inc (grid/min-y mirror))
@@ -78,7 +87,7 @@
 
 (defn run []
   (let [verticals (->> mirrors (map mirrored-at-x) (remove nil?))
-        horizontals (->> mirrors (map mirrored-at-y) (remove nil?))]
-    (->> verticals
-         (concat (map (partial * 100) horizontals))
-         (reduce +))))
+          horizontals (->> mirrors (map mirrored-at-y) (remove nil?))]
+      (->> verticals
+           (concat (map (partial * 100) horizontals))
+           (reduce +))))
