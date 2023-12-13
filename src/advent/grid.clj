@@ -66,6 +66,29 @@
 
 (alter-var-root #'valid-point-or-nil memoize)
 
+;; Coordinate
+;; ==========
+
+(defprotocol Coordinate
+  (val-coord [this point] "get the value (x or y) of the coordinate from a point")
+  (opp-coord [this point] "get the opposite value of the coordinate (x or y) from a point")
+  (max-coord [this grid] "get the max coordinate (x or y) from the grid")
+  (min-coord [this grid] "get the min coordinate (x or y) from the grid"))
+
+(deftype XCoordinate []
+  Coordinate
+  (val-coord [this point] (first point))
+  (opp-coord [this point] (second point))
+  (max-coord [this grid] (max-x grid))
+  (min-coord [this grid] (min-x grid)))
+
+(deftype YCoordinate []
+  Coordinate
+  (val-coord [this point] (second point))
+  (opp-coord [this point] (first point))
+  (max-coord [this grid] (max-y grid))
+  (min-coord [this grid] (min-y grid)))
+
 ;; Neighbors
 ;; =========
 
