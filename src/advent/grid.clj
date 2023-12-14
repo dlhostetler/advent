@@ -177,6 +177,39 @@
                        (not revisit?) (conj point))))
       (into {} grid))))
 
+;; Flood
+;; =====
+
+(defn- flood-step [grid neighbors-fn should-fill? fill-with]
+  (let []
+    (into grid
+          (for [point (->> grid
+                           (filter (comp (partial = fill-with) last))
+                           (map first)
+                           (mapcat neighbors-fn (repeat grid)))
+                :when (should-fill? (get grid point))]
+            [point fill-with]))))
+
+(defn flood [grid {:keys [fill-with
+                          max-steps
+                          neighbors-fn
+                          should-fill?
+                          start-point]
+                   :or {fill-with \*
+                        max-steps 10000
+                        neighbors-fn cardinal-neighbors
+                        should-fill? (partial = \.)
+                        start-point [0 0]}}]
+  (loop [g (assoc grid start-point fill-with)
+         steps 0]
+    (when (> steps max-steps)
+      (throw (Exception. (str "reached " max-steps " with no solution"))))
+    (let [next-grid (flood-step g neighbors-fn should-fill? fill-with)]
+      (if (not= g next-grid)
+        (recur next-grid (inc steps))
+        {:grid grid
+         :steps steps}))))
+
 ;; Visualization
 ;; =============
 
