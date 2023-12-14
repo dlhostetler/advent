@@ -17,52 +17,49 @@
        (remove true?)
        count))
 
-(defn split-grid-at [mirror coordinate n]
+(defn split-grid-at [mirror x]
   (let [splits (->> mirror
                     (group-by (fn [[point]]
-                                (< (grid/val-coord coordinate point) n)))
+                                (< (grid/x point) x)))
                     (map-vals #(into {} %)))]
     [(get splits true) (get splits false)]))
 
-(defn line [mirror coordinate n]
+(defn col [mirror x]
   (->> mirror
-       (filter (comp (partial = n) #(grid/val-coord coordinate %) first))
-       (sort-by (comp #(grid/opp-coord coordinate %) first))
+       (filter (comp (partial = x) grid/x first))
+       (sort-by (comp grid/y first))
        vals))
 
-(defn lines [mirror coordinate ns]
-  (into [] (for [n ns]
-             (line mirror coordinate n))))
+(defn cols [mirror xs]
+  (into [] (for [x xs] (col mirror x))))
 
-(defn mirrored? [[half1 half2] coordinate]
-  (let [half0-lines (lines half1
-                           coordinate
-                           (range (grid/max-coord coordinate half1)
-                                  (dec (grid/min-coord coordinate half1))
-                                  -1))
-        half1-lines (lines half2
-                           coordinate
-                           (range (grid/min-coord coordinate half2)
-                                  (inc (grid/max-coord coordinate half2))))]
-    (->> (map count-differences half0-lines half1-lines)
+(defn mirrored? [[left right]]
+  (let [left-lines (cols left
+                         (range (grid/max-x left)
+                                (dec (grid/min-x left))
+                                -1))
+        right-lines (cols right
+                          (range (grid/min-x right)
+                                 (inc (grid/max-x right))))]
+    (->> (map count-differences left-lines right-lines)
          (reduce +)
          (= 1))))
 
-(defn grid-mirrored-at [mirror coordinate]
-  (->> (for [n (range (inc (grid/min-coord coordinate mirror))
-                      (inc (grid/max-coord coordinate mirror)))
+(defn grid-mirrored-at [mirror]
+  (->> (for [x (range (inc (grid/min-x mirror)) (inc (grid/max-x mirror)))
              :when (-> mirror
-                       (split-grid-at coordinate n)
-                       (mirrored? coordinate))]
-         n)
+                       (split-grid-at x)
+                       mirrored?)]
+         x)
        first))
 
 (defn run []
   (let [verticals (->> mirrors
-                       (map #(grid-mirrored-at % (grid/->XCoordinate)))
+                       (map grid-mirrored-at)
                        (remove nil?))
         horizontals (->> mirrors
-                         (map #(grid-mirrored-at % (grid/->YCoordinate)))
+                         (map grid/rotate-90-neg)
+                         (map grid-mirrored-at)
                          (remove nil?))]
     (->> verticals
          (concat (map (partial * 100) horizontals))

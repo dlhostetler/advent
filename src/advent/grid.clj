@@ -27,6 +27,31 @@
        line-seq
        lines->grid))
 
+;; Point(s)
+;; ========
+
+(defn x [point]
+  (first point))
+
+(defn y [point]
+  (second point))
+
+(defn pred-point->tile= [grid target-tile]
+  (fn [point]
+    (= (get grid point) target-tile)))
+
+(defn pred-tile= [target-tile]
+  (fn [[_ tile]]
+    (= tile target-tile)))
+
+(defn with-tiles
+  ([grid points]
+   (with-tiles grid points nil))
+  ([grid points not-found]
+   (map (fn [point]
+          [point (get grid point not-found)])
+        points)))
+
 ;; Edges
 ;; =====
 
@@ -35,10 +60,20 @@
 
 (alter-var-root #'max-x memoize)
 
+(defn max-x+1 [grid]
+  (inc (max-x grid)))
+
+(alter-var-root #'max-x+1 memoize)
+
 (defn max-y [grid]
   (->> grid keys (map last) (apply max)))
 
 (alter-var-root #'max-y memoize)
+
+(defn max-y+1 [grid]
+  (inc (max-y grid)))
+
+(alter-var-root #'max-y+1 memoize)
 
 (defn min-x [grid]
   (->> grid keys (map first) (apply min)))
@@ -66,28 +101,20 @@
 
 (alter-var-root #'valid-point-or-nil memoize)
 
-;; Coordinate
-;; ==========
+;; Col/Row
+;; =======
 
-(defprotocol Coordinate
-  (val-coord [this point] "get the value (x or y) of the coordinate from a point")
-  (opp-coord [this point] "get the opposite value of the coordinate (x or y) from a point")
-  (max-coord [this grid] "get the max coordinate (x or y) from the grid")
-  (min-coord [this grid] "get the min coordinate (x or y) from the grid"))
+(defn points-col [grid x]
+  (for [y (range (min-y grid) (inc (max-y grid)))
+        :let [point [x y]]
+        :when (get grid point)]
+    point))
 
-(deftype XCoordinate []
-  Coordinate
-  (val-coord [this point] (first point))
-  (opp-coord [this point] (second point))
-  (max-coord [this grid] (max-x grid))
-  (min-coord [this grid] (min-x grid)))
-
-(deftype YCoordinate []
-  Coordinate
-  (val-coord [this point] (second point))
-  (opp-coord [this point] (first point))
-  (max-coord [this grid] (max-y grid))
-  (min-coord [this grid] (min-y grid)))
+(defn points-row [grid y]
+  (for [x (range (min-x grid) (inc (max-x grid)))
+        :let [point [x y]]
+        :when (get grid point)]
+    point))
 
 ;; Neighbors
 ;; =========
@@ -177,6 +204,21 @@
                        (not revisit?) (conj point))))
       (into {} grid))))
 
+(defn rotate-90-neg [grid]
+  (map-keys (fn [[x y]]
+              [y (* -1 x)])
+            grid))
+
+(defn rotate-90-pos [grid]
+  (map-keys (fn [[x y]]
+              [(* -1 y) x])
+            grid))
+
+(defn rotate-180[grid]
+  (map-keys (fn [[x y]]
+              [(* -1 x) (* -1 y)])
+            grid))
+
 ;; Flood
 ;; =====
 
@@ -232,6 +274,8 @@
   (bound grid first min))
 
 (defn print
+  ([grid]
+   (print grid identity))
   ([grid visualize-point]
    (print grid visualize-point {}))
   ([grid visualize-point {:keys [default
@@ -243,7 +287,8 @@
                                  padding
                                  y-dir]
                           :or {empty-point "."
-                               padding 1}}]
+                               padding 0
+                               y-dir :top-down}}]
    (when-not (empty? grid)
      (doseq [y (cond-> (range (- (or min-y (grid->min-y grid)) padding)
                               (inc (+ (or max-y (grid->max-y grid)) padding)))
@@ -258,6 +303,11 @@
        (println))
      (println))))
 
-(defn print-> [grid visualize-point options]
-  (print grid visualize-point options)
-  grid)
+(defn print->
+  ([grid]
+   (print-> grid identity))
+  ([grid visualize-point]
+   (print-> grid visualize-point {}))
+  ([grid visualize-point options]
+   (print grid visualize-point options)
+   grid))
