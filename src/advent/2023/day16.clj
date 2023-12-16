@@ -1,107 +1,67 @@
 (ns advent.2023.day16
   (:require [advent.grid :as grid]
-            [advent.seq :as seq]
             [clojure.java.io :as io]
             [plumbing.core :refer :all]))
 
-(def init-contraption
+(def contraption
   (-> "resources/2023/day16.input"
       io/reader
       grid/slurp))
 
+(def dir->dirs {:n {\| #{:n}
+                    \- #{:w :e}
+                    \\ #{:w}
+                    \/ #{:e}
+                    \. #{:n}}
+                :e {\| #{:n :s}
+                    \- #{:e}
+                    \\ #{:s},
+                    \/ #{:n},
+                    \. #{:e}}
+                :s {\| #{:s},
+                    \- #{:w :e},
+                    \\ #{:e},
+                    \/ #{:w},
+                    \. #{:s}}
+                :w {\| #{:n :s}
+                    \- #{:w}
+                    \\ #{:n}
+                    \/ #{:s}
+                    \. #{:w}}})
 (def dir->neighbor {:n grid/north
                     :e grid/east
                     :s grid/south
                     :w grid/west})
 
-(def back-slash-bounces {:n :w
-                         :e :s
-                         :s :e
-                         :w :n})
+(defn valid-point? [point]
+  (grid/valid-point-or-nil contraption point))
 
-(def forward-slash-bounces {:n :e
-                            :e :n
-                            :s :w
-                            :w :s})
+(defn next-beams [energized [point dir]]
+  (for [next-dir (get-in dir->dirs [dir (get contraption point)])
+        :let [to-point ((dir->neighbor next-dir) point)]
+        :when (valid-point? to-point)
+        :let [next-beam [to-point next-dir]]
+        :when (not (@energized next-beam))]
+    next-beam))
 
-(defn beam->dir [beam]
-  (-> beam last last))
-
-(defn beam-exists? [beams start]
-  (->> beams
-       (map first)
-       (some (partial = start))))
-
-(defmulti extend-beam (fn [state beam next-p]
-                        (get (:contraption state) next-p)))
-
-(defmethod extend-beam \. [_ beam next-p]
-  [(conj beam [next-p (beam->dir beam)])])
-
-(defmethod extend-beam \| [{:keys [beams]} beam next-p]
-  (let [dir (beam->dir beam)]
-    (if (or (= dir :n) (= dir :s))
-      [(conj beam [next-p dir])]
-      (-> [beam]
-          (cond-> (not (beam-exists? beams [next-p :n]))
-                  (conj [[next-p :n]]))
-          (cond-> (not (beam-exists? beams [next-p :s]))
-                  (conj [[next-p :s]]))))))
-
-(defmethod extend-beam \- [{:keys [beams]} beam next-p]
-  (let [dir (beam->dir beam)]
-    (if (or (= dir :e) (= dir :w))
-      [(conj beam [next-p dir])]
-      (-> [beam]
-          (cond-> (not (beam-exists? beams [next-p :e]))
-                  (conj [[next-p :e]]))
-          (cond-> (not (beam-exists? beams [next-p :w]))
-                  (conj [[next-p :w]]))))))
-
-(defmethod extend-beam \/ [_ beam next-p]
-  (let [dir (beam->dir beam)]
-    [(conj beam [next-p (forward-slash-bounces dir)])]))
-
-(defmethod extend-beam \\ [_ beam next-p]
-  (let [dir (beam->dir beam)]
-    [(conj beam [next-p (back-slash-bounces dir)])]))
-
-(alter-var-root #'extend-beam memoize)
-
-(defn next-beams [{:keys [contraption] :as state} beam]
-  (let [[p dir] (last beam)
-        neighbor (dir->neighbor dir)
-        next-p (grid/valid-point-or-nil contraption (neighbor p))]
-    (if next-p
-      (extend-beam state beam next-p)
-      [beam])))
-
-(defn next-state [{:keys [beams] :as state}]
-  (let [next-beams (mapcat (partial next-beams state) beams)]
-    (assoc state :beams next-beams)))
-
-(defn beam->grid [beam]
-  (->> beam
-       (mapv first)
-       (map (fn [p] [p \#]))
-       (into {})))
-
-(defn state->energized [state]
-  (->> state
-       :beams
-       (apply concat)
-       (map first)
-       (into #{})
-       count))
-
-(defn print-state [{:keys [contraption beams] :as state}]
-  (grid/print (apply merge contraption
-                     (map beam->grid beams)))
-  (println "energized" (state->energized state)))
+(defn energize [beam]
+  (println beam)
+  (let [energized (atom #{})]
+    (loop [beams [beam]]
+      (swap-vals! energized #(apply conj %1 %2) beams)
+      (let [next-beams (mapcat #(next-beams energized %) beams)]
+        (when-not (empty? next-beams)
+          (recur next-beams))))
+    (->> @energized (map first) set count)))
 
 (defn run []
-  (->> (seq/successive next-state {:contraption init-contraption
-                                   :beams #{[[[0 0] :s]]}})
-       (drop 1000)
-       first
-       print-state))
+  (->> (concat (for [x (range 0 (grid/max-x+1 contraption))]
+                 [[x 0] :s])
+               (for [x (range 0 (grid/max-x+1 contraption))]
+                 [[x (grid/max-y contraption)] :n])
+               (for [y (range 0 (grid/max-y+1 contraption))]
+                 [[0 y] :e])
+               (for [y (range 0 (grid/max-y+1 contraption))]
+                 [[(grid/max-x contraption) y] :w]))
+       (map energize)
+       (reduce max)))
