@@ -48,7 +48,8 @@
 
 (defn neighbors [[[x y dir steps] cost]]
   (for [[x' y' dir'] ((get next-positions dir) [x y])
-        :when (or (<= steps 2) (not= dir dir'))
+        :when (or (>= steps 4) (= dir dir'))
+        :when (or (<= steps 9) (not= dir dir'))
         :when (grid/valid-point-or-nil numbers [x' y'])]
     [[x' y' dir' (if (= dir dir') (inc steps) 1)]
      (+ cost (get numbers [x' y']))]))
@@ -57,5 +58,7 @@
   (let [start [0 0 :e 0] ;; x y dir steps
         end [(grid/max-x numbers) (grid/max-y numbers)]]
     (dijkstra start
-              #(every? true? (map = % end))
+              (fn [[x y _ steps]]
+                (and (>= steps 4)
+                     (= end [x y])))
               neighbors)))
