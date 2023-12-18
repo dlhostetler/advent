@@ -214,7 +214,7 @@
               [(* -1 y) x])
             grid))
 
-(defn rotate-180[grid]
+(defn rotate-180 [grid]
   (map-keys (fn [[x y]]
               [(* -1 x) (* -1 y)])
             grid))
@@ -222,15 +222,12 @@
 ;; Flood
 ;; =====
 
-(defn- flood-step [grid neighbors-fn should-fill? fill-with]
-  (let []
-    (into grid
-          (for [point (->> grid
-                           (filter (comp (partial = fill-with) last))
-                           (map first)
-                           (mapcat neighbors-fn (repeat grid)))
-                :when (should-fill? (get grid point))]
-            [point fill-with]))))
+(defn- points-to-flood [grid flooded? last-flooded neighbors-fn should-fill?]
+  (set
+    (for [point (mapcat neighbors-fn (repeat grid) last-flooded)
+          :when (and (not (flooded? point))
+                     (should-fill? (get grid point)))]
+      point)))
 
 (defn flood [grid {:keys [fill-with
                           max-steps
@@ -240,16 +237,24 @@
                    :or {fill-with \*
                         max-steps 10000
                         neighbors-fn cardinal-neighbors
-                        should-fill? (partial = \.)
+                        should-fill? (fn [tile] (or (nil? tile) (= tile \.)))
                         start-point [0 0]}}]
-  (loop [g (assoc grid start-point fill-with)
+  (loop [flooded #{start-point}
+         last-flooded #{start-point}
          steps 0]
     (when (> steps max-steps)
       (throw (Exception. (str "reached " max-steps " with no solution"))))
-    (let [next-grid (flood-step g neighbors-fn should-fill? fill-with)]
-      (if (not= g next-grid)
-        (recur next-grid (inc steps))
-        {:grid grid
+    (let [to-flood (points-to-flood grid
+                                    flooded
+                                    last-flooded
+                                    neighbors-fn
+                                    should-fill?)
+          flooded' (into flooded to-flood)]
+      (if (not= flooded flooded')
+        (recur flooded' to-flood (inc steps))
+        {:grid (->> flooded
+                    (map (fn [point] [point fill-with]))
+                    (into grid))
          :steps steps}))))
 
 ;; Visualization
