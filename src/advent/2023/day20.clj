@@ -1,7 +1,10 @@
 (ns advent.2023.day20
-  (:require [clojure.java.io :as io]
+  (:require [advent.math :refer [lcm]]
+            [clojure.java.io :as io]
             [clojure.string :as str]
             [plumbing.core :refer :all]))
+
+(def rx-conjunction :zg)
 
 (defn parse-module [line]
   (let [[_ module-type module-name outputs] (re-matches #"(%|&)?(.+) -> (.+)" line)]
@@ -46,6 +49,9 @@
        (map parse-module)
        (into {})
        initialize-modules-state))
+
+(def init-state {:modules init-modules
+                 :queued []})
 
 (defn pulse->val [modules pulse field]
   (-> modules
@@ -112,33 +118,31 @@
   #_(println "BUTTON")
   (queue-pulse state :button :broadcaster :low))
 
-(defn process-next [state]
-  (let [pulse (-> state :queued first)]
+(defn process-next [state from-module-name]
+  (let [pulse (-> state :queued first)
+        delivered? (= (get-in state [:modules rx-conjunction :state from-module-name])
+                      :high)]
     #_(println pulse)
     (-> state
         (process-pulse pulse)
         (update :queued rest)
         (update :queued vec)
-        (update-in [:total-pulsed (last pulse)] (fnil inc 0)))))
+        (cond-> delivered? (assoc :delivered? true)))))
 
-(defn process-all [state]
+(defn process-all [state from-module-name]
   (if-not (empty? (:queued state))
-    (recur (process-next state))
+    (recur (process-next state from-module-name) from-module-name)
     state))
 
-(defn push-and-process [state n]
-  (if (zero? n)
-    state
-    (recur (-> state press-button process-all) (dec n))))
-
-(defn state->n [state]
-  (->> state
-       :total-pulsed
-       vals
-       (reduce *)))
+(defn push-and-process [state n from-module-name]
+  (if (:delivered? state)
+    n
+    (recur (-> state press-button (process-all from-module-name))
+           (inc n)
+           from-module-name)))
 
 (defn run []
-  (-> {:modules init-modules
-       :queued []}
-      (push-and-process 1000)
-      state->n))
+  (->> (get-in init-modules [rx-conjunction :state])
+       keys
+       (pmap #(push-and-process init-state 0 %))
+       (reduce lcm)))
