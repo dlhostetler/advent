@@ -65,6 +65,11 @@
   (let [lowest-z (->> cubes (map last) (reduce min))]
     (->> cubes (filter (comp #(= lowest-z %) last)))))
 
+(defn lowest-z [bricks brick-id]
+  (->> (->cubes bricks brick-id)
+       (map last)
+       (reduce min)))
+
 (defn num-down [bricks down [x y z]]
   (if (= z 1)
     down
@@ -110,39 +115,30 @@
        bricks
        (recur bricks' (inc i))))))
 
-(defn cube-above [[x y z]]
-  [x y (inc z)])
+(defn without-brick [bricks brick-id]
+  (->> bricks
+       (remove (comp #(= brick-id %) last))
+       (into {})))
 
-(defn cube-below [[x y z]]
-  [x y (dec z)])
+(defn brick-ids->z [bricks]
+  (for-map [brick-id (->> bricks vals distinct)]
+    brick-id (lowest-z bricks brick-id)))
 
-(defn supporting [bricks brick-id]
-  (disj (->> (->cubes bricks brick-id)
-             (map cube-above)
-             (map #(get bricks %))
-             (remove nil?)
-             (into #{}))
-        brick-id))
-
-(defn supporters [bricks brick-id]
-  (disj (->> (->cubes bricks brick-id)
-             (map cube-below)
-             (map #(get bricks %))
-             (remove nil?)
-             (into #{}))
-        brick-id))
-
-(defn one-supporter? [supporters]
-  (= 1 (count supporters)))
-
-(defn removable? [bricks brick-id]
-  (->> (supporting bricks brick-id)
-       (map #(supporters bricks %))
-       (not-any? one-supporter?)))
+(defn num-fallen [bricks brick-id]
+  (println brick-id)
+  (let [ids->zs (-> bricks
+                    (without-brick brick-id)
+                    fall-bricks
+                    brick-ids->z)]
+    (count (for [[brick-id orig-z] (brick-ids->z bricks)
+                 :when (not= (get ids->zs brick-id) orig-z)]
+             brick-id))))
 
 (defn run []
   (let [settled (fall-bricks snapshot)]
-    (->> (->ordered-brick-ids settled)
-         (map #(removable? settled %))
-         (filter true?)
-         count)))
+    (->> settled
+         vals
+         sort
+         distinct
+         (pmap #(num-fallen settled %))
+         (reduce +))))
