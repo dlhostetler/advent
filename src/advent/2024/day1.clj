@@ -2004,9 +2004,9 @@
    31034
    39489])
 
+(defn one-similarity [n]
+  (* n (count (filter #(= n %) list1))))
+
 (defn run []
-  (let [list0 (sort list0)
-        list1 (sort list1)]
-    (->> (map - list0 list1)
-         (map #(Math/abs %))
-         (reduce +))))
+  (->> (map one-similarity list0)
+       (reduce +)))
