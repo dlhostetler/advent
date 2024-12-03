@@ -7,17 +7,28 @@
       slurp))
 
 (def operation-matcher
-  (re-matcher #"mul[(](\d+),(\d+)[)]" input))
+  (re-matcher #"(do|don't|mul)[(]((\d+),(\d+))?[)]" input))
 
 (defn next-operation []
-  (when-let [[_ x y] (re-find operation-matcher)]
-    [(Integer/parseInt x) (Integer/parseInt y)]))
+  (when-let [[_ op _ x y] (re-find operation-matcher)]
+    [op
+     (when x (Integer/parseInt x))
+     (when y (Integer/parseInt y))]))
 
 (def operations
   (->> (repeatedly next-operation)
        (take-while some?)))
 
 (defn run []
-  (->> operations
-       (map #(reduce * %))
-       (reduce +)))
+    (loop [ops operations
+           do? true
+           total 0]
+      (if (empty? ops)
+        total
+        (let [[op x y] (first ops)]
+          (case op
+            "do" (recur (rest ops) true total)
+            "don't" (recur (rest ops) false total)
+            "mul" (recur (rest ops)
+                         do?
+                         (if do? (+ total (* x y)) total)))))))
