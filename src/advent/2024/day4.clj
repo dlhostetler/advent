@@ -2,16 +2,6 @@
   (:require [advent.grid :as grid]
             [plumbing.core :refer :all]))
 
-(def dirs
-  [grid/east
-   grid/southeast
-   grid/south
-   grid/southwest
-   grid/west
-   grid/northwest
-   grid/north
-   grid/northeast])
-
 (def input
   (->> "resources/2024/day4.input"
        grid/slurp
@@ -19,24 +9,25 @@
        (remove (comp (partial = ".") last))
        (into {})))
 
-(defn four-letters-from [p dir]
-  (loop [n 4
-         p p
-         letters ""]
-    (if (zero? n)
-      letters
-      (recur (dec n) (dir p) (str letters (get input p))))))
+(defn nw-to-se-word [p]
+  (str (input (grid/northwest p))
+       (input p)
+       (input (grid/southeast p))))
 
-(defn xmas? [[x y] dir]
-  (= (four-letters-from [x y] dir) "XMAS"))
+(defn ne-to-sw-word [p]
+  (str (input (grid/northeast p))
+       (input p)
+       (input (grid/southwest p))))
 
-(defn count-xmases-from [p]
-  (->> (for [dir dirs] (xmas? p dir))
-       (filter true?)
-       count))
+(defn x-mas? [[x y]]
+  (and (or (= (nw-to-se-word [x y]) "MAS")
+           (= (nw-to-se-word [x y]) "SAM"))
+       (or (= (ne-to-sw-word [x y]) "MAS")
+           (= (ne-to-sw-word [x y]) "SAM"))))
 
 (defn run []
   (->> input
        keys
-       (map count-xmases-from)
-       (reduce +)))
+       (map x-mas?)
+       (filter true?)
+       count))
