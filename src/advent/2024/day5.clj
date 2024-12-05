@@ -46,6 +46,8 @@
 
 (defn run []
   (->> page-number-updates
-       (filter in-order?)
+       (remove in-order?)
+       (map #(sort page-comp %))
+       (map vec)
        (map middle-number)
        (reduce +)))
