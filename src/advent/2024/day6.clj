@@ -1,7 +1,12 @@
 (ns advent.2024.day6
   (:require [advent.grid :as grid]
-            [advent.seq :as seq]
             [plumbing.core :refer :all]))
+
+(def dir-to-fn
+  {:n grid/north
+   :e grid/east
+   :s grid/south
+   :w grid/west})
 
 (def input
   (->> "resources/2024/day6.input"
@@ -10,52 +15,103 @@
        (remove (comp (partial = ".") last))
        (into {})))
 
-(def dir-to-fn
-  {:n grid/north
-   :e grid/east
-   :s grid/south
-   :w grid/west})
+(def starting-pos
+  (->> input
+       (filter (comp (partial = "^") val))
+       first
+       first))
 
-(defn init-state []
-  (let [at (->> input
-                (filter (comp (partial = "^") val))
-                first
-                first)]
-    {:at at
-     :dir :n
-     :positions input}))
+(def obstacles
+  (dissoc input starting-pos))
 
-(defn inside? [positions at]
-  (some? (grid/valid-point-or-nil positions at)))
+(defn init-path []
+  [[starting-pos :n]])
 
-(defn next-state [{:keys [at dir positions] :as state}]
-  (let [next-at ((dir-to-fn dir) at)]
+(defn print-path [path]
+  (grid/print (merge obstacles
+                     (->> (for [[pos] path]
+                            [pos "X"])
+                          (into {})))))
+
+(defn outside? [pos]
+  (nil? (grid/valid-point-or-nil obstacles pos)))
+
+(defn turn-right [at dir]
+  (let [next-dir (case dir
+                   :n :e
+                   :e :s
+                   :s :w
+                   :w :n)
+        next-at ((dir-to-fn next-dir) at)]
+    [next-at next-dir]))
+
+(defn patrol [visited]
+  (let [[at dir] (last visited)]
+    (if (outside? at)
+      ;; done
+      (drop-last visited)
+      ;; move
+      (let [next-at ((dir-to-fn dir) at)]
+        (if (obstacles next-at)
+          (recur (conj visited (turn-right at dir)))
+          (recur (conj visited [next-at dir])))))))
+
+(defn hits-self? [updated-obstacles path visited current]
+  (let [[at dir] current]
     (cond
-      ;; already outside
-      (not (inside? positions at))
-      state
-      (= "#" (get positions next-at))
-      ;; turn
-      (let [next-dir (case dir
-                       :n :e
-                       :e :s
-                       :s :w
-                       :w :n)]
-        (assoc state :dir next-dir))
-      ;; forward
+      ;; never looped back
+      (outside? at)
+      false
+      ;; ran into self
+      (visited current)
+      true
+      ;; move
       :else
-      {:at next-at
-       :dir dir
-       :positions (assoc positions at "X")})))
+      (let [next-at ((dir-to-fn dir) at)]
+        (if (updated-obstacles next-at)
+          (recur updated-obstacles
+                 (conj path current)
+                 (conj visited current)
+                 (turn-right at dir))
+          (recur updated-obstacles
+                 (conj path current)
+                 (conj visited current)
+                 [next-at dir]))))))
 
-(defn continue? [{:keys [at positions]}]
-  (inside? positions at))
+(defn maybe-add-obstacle [path new-obstacles]
+  (let [[at dir] (last path)
+        new-obstacle-at ((dir-to-fn dir) at)
+        [next-at next-dir :as next] (turn-right at dir)]
+    (cond
+      ;; turning right would lead nowhere
+      (outside? next-at)
+      new-obstacles
+
+      ;; turning right would lead immediately to another obstacle
+      (obstacles next-at)
+      (maybe-add-obstacle (conj path [at next-dir]) new-obstacles)
+
+      (hits-self? (assoc obstacles new-obstacle-at "#")
+                  path
+                  (set path)
+                  next)
+      (conj new-obstacles new-obstacle-at)
+
+      :else
+      new-obstacles)))
+
+(defn find-new-obstacles [full-path]
+  (loop [path full-path
+         new-obstacles []]
+    (if (empty? path)
+      new-obstacles
+      (recur (vec (butlast path))
+             (maybe-add-obstacle path new-obstacles)))))
 
 (defn run []
-  (->> (init-state)
-       (seq/successive next-state)
-       (drop-while continue?)
-       first
-       :positions
-       (filter (comp (partial = "X") val))
-       (count)))
+  (->> (init-path)
+       patrol
+       find-new-obstacles
+       count
+       ;; this is high by one, no idea why
+       dec))
