@@ -18,8 +18,15 @@
 (defn valid? [target operands total]
   (if (empty? operands)
     (= total target)
-    (or (valid? target (rest operands) (+ total (first operands)))
-        (valid? target (rest operands) (* total (first operands))))))
+    (or (valid? target
+                (rest operands)
+                (+ total (first operands)))
+        (valid? target
+                (rest operands)
+                (* total (first operands)))
+        (valid? target
+                (rest operands)
+                (Long/parseLong (str total (first operands)))))))
 
 (defn valid-equation? [{:keys [operands target]}]
   (valid? target (rest operands) (first operands)))
