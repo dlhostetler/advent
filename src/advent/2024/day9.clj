@@ -14,7 +14,7 @@
          i 0
          id 0
          address 0
-         memory []]
+         memory {}]
     (if (>= i (count input))
       memory
       (let [n (first ns)
@@ -24,65 +24,78 @@
                  (inc i)
                  (inc id)
                  to
-                 (conj memory [address to id]))
+                 (assoc memory id [address to]))
           (recur (rest ns)
                  (inc i)
                  id
                  to
-                 (conj memory [address to nil])))))))
+                 (update memory nil (fnil conj []) [address to])))))))
 
-(defn remove-empty [memory]
-  (let [[_ _ id] (last memory)]
-    (if (and (not (empty? memory)) (nil? id))
-      (recur (vec (drop-last memory)))
+(defn find-empty-block [memory size]
+  (first (for [[empty-from empty-to :as empty-block] (get memory nil)
+               :let [empty-size (- empty-to empty-from)]
+               :when (<= size empty-size)]
+           empty-block)))
+
+(defn normalize-empties [blocks]
+  (loop [blocks (vec (sort blocks))
+         i 0]
+    (if (>= i (-> blocks count dec))
+      blocks
+      (let [[from0 to0] (get blocks i)
+            [from1 to1] (get blocks (inc i))]
+        (if (= to0 from1)
+          (recur (vec (concat (subvec blocks 0 i)
+                              [[from0 to1]]
+                              (subvec blocks (+ i 2) (count blocks))))
+                 i)
+          (recur blocks (inc i)))))))
+
+(defn fill-empty [memory id [empty-from empty-to :as empty-block]]
+  (let [[from to :as block] (get memory id)
+        size (- to from)
+        empty-size (- empty-to empty-from)]
+    (cond
+      ;; this shouldn't move because it would move right
+      (> empty-from from)
+      memory
+
+      ;; this is an exact fit
+      (= empty-size size)
+      (-> memory
+          (assoc nil (->> (get memory nil)
+                          (remove (partial = empty-block))))
+          (update nil conj block)
+          (update nil normalize-empties)
+          (assoc id empty-block))
+
+      ;; otherwise break it down
+      :else
+      (-> memory
+          (assoc nil (->> (get memory nil)
+                          (remove (partial = empty-block))))
+          (update nil conj block)
+          (update nil conj [(+ empty-from size) empty-to])
+          (update nil normalize-empties)
+          (assoc id [empty-from (+ empty-from size)])))))
+
+(defn adjust-block [memory id]
+  (let [[from to] (get memory id)
+        size (- to from)
+        empty-block (find-empty-block memory size)]
+    (if empty-block
+      (fill-empty memory id empty-block)
+      ;; no empty block found
       memory)))
 
-(defn fill-empty [memory i empty-from empty-to]
-  (loop [memory (remove-empty memory)
-         empty-from empty-from
-         need (- empty-to empty-from)
-         to-fill []]
-    (if (or (zero? need) (>= i (count memory)))
-      (assoc memory i to-fill)
-      (let [[file-from file-to id] (last memory)
-            available (- file-to file-from)]
-        (if (> available need)
-          ;; more than enough to fill
-          (recur (-> memory
-                     drop-last
-                     vec
-                     (conj [file-from (- file-to need) id]))
-                 empty-from
-                 0
-                 (conj to-fill [empty-from empty-to id]))
-          ;; exactly enough or not enough to fill
-          (recur (-> memory drop-last vec remove-empty)
-                 (+ empty-from available)
-                 (- need available)
-                 (conj to-fill [empty-from (+ empty-from available) id])))))))
+(defn fill-memory [memory]
+  (loop [memory memory
+         id (->> memory keys (remove nil?) (apply max))]
+    (if (zero? id)
+      memory
+      (recur (adjust-block memory id) (dec id)))))
 
-(defn fill-memory [memory i]
-  (if (>= i (count memory))
-    memory
-    (let [[from to id] (get memory i)]
-      (if (nil? id)
-        (recur (fill-empty memory i from to) (inc i))
-        ;; already filled
-        (recur memory (inc i))))))
-
-(defn coerce-nested [block]
-  (if (vector? (first block))
-    block
-    [block]))
-
-(defn normalize [memory]
-  (->> memory
-       (map coerce-nested)
-       (apply concat)
-       (remove empty?)
-       vec))
-
-(defn block-checksum [[from to id]]
+(defn block-checksum [[id [from to]]]
   (loop [i from
          total 0]
     (if (>= i to)
@@ -91,10 +104,9 @@
 
 (defn checksum [memory]
   (->> memory
+       (remove (comp nil? key))
        (map block-checksum)
        (reduce +)))
 
 (defn run []
-  (->> (fill-memory (init-memory) 0)
-       normalize
-       checksum))
+  (checksum (fill-memory (init-memory))))
