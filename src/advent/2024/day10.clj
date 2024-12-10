@@ -14,21 +14,16 @@
        (filter (comp (partial = 0) val))
        (map first)))
 
-(defn nines-from
-  ([p]
-   (nines-from p #{}))
-  ([p nines]
-   (let [height (get terrain p)]
-     (if (= 9 height)
-       (conj nines p)
-       (->> (for [neighbor (grid/cardinal-neighbors terrain p)
-                  :when (= (get terrain neighbor) (inc height))]
-              (nines-from neighbor nines))
-            (apply concat)
-            (into nines))))))
+(defn rating-from [p]
+  (let [height (get terrain p)]
+    (if (= 9 height)
+     1
+     (->> (for [neighbor (grid/cardinal-neighbors terrain p)
+                :when (= (get terrain neighbor) (inc height))]
+            (rating-from neighbor))
+          (reduce + 0)))))
 
 (defn run []
   (->> starting-positions
-       (map nines-from)
-       (map count)
+       (map rating-from)
        (reduce +)))
