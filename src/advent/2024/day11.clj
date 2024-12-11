@@ -13,23 +13,25 @@
     [(Integer/parseInt (apply str (subvec nstr 0 mid)))
      (Integer/parseInt (apply str (subvec nstr mid)))]))
 
-(defn stone->stones [stone]
+(defn count-stones [blinks stone]
   (cond
+    (zero? blinks)
+    1
+
     (zero? stone)
-    [1]
+    (count-stones (dec blinks) 1)
 
     (even-digits? stone)
-    (split-stone stone)
+    (let [[stone0 stone1] (split-stone stone)]
+      (+ (count-stones (dec blinks) stone0)
+         (count-stones (dec blinks) stone1)))
 
     :else
-    [(* stone 2024)]))
+    (count-stones (dec blinks) (* stone 2024))))
 
-(defn next-stones [stones]
-  (->> stones (map stone->stones) flatten))
+(alter-var-root #'count-stones memoize)
 
 (defn run []
   (->> input
-       (seq/successive next-stones)
-       (drop 25)
-       first
-       count))
+       (map (partial count-stones 75))
+       (reduce +)))
