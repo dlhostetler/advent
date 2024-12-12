@@ -18,30 +18,49 @@
 (defn split-regions [plots]
   (loop [plots plots
          regions []]
-    (if (empty? plots)
-      regions
-      (let [region (region-at plots (-> plots first))]
-        (recur (apply dissoc plots (keys region))
-               (conj regions region))))))
+    (if-let [plot (->> plots
+                       (remove (comp (partial = ".") val))
+                       first)]
+      (let [region (region-at plots plot)]
+        (recur (into plots
+                     (for [p (keys region)]
+                       [p "."]))
+               (conj regions region)))
+      regions)))
 
 (defn area [region]
   (count region))
 
-(defn count-fences [region [p]]
-  (->> [(grid/north p) (grid/east p) (grid/south p) (grid/west p)]
-       (map #(contains? region %))
-       (filter true?)
-       count
-       (- 4)))
+(defn outside-corner? [region dir0 dir1 p]
+  (and (not (contains? region (dir0 p)))
+       (not (contains? region (dir1 p)))))
 
-(defn perimeter [region]
+(defn inside-corner? [region dir-empty dir-full0 dir-full1 p]
+  (and (not (contains? region (dir-empty p)))
+       (contains? region (dir-full0 p))
+       (contains? region (dir-full1 p))))
+
+(defn num-corners [region p]
+  (->> [(outside-corner? region grid/north grid/west p)
+        (outside-corner? region grid/north grid/east p)
+        (outside-corner? region grid/south grid/east p)
+        (outside-corner? region grid/south grid/west p)
+        (inside-corner? region grid/northwest grid/north grid/west p)
+        (inside-corner? region grid/northeast grid/north grid/east p)
+        (inside-corner? region grid/southeast grid/south grid/east p)
+        (inside-corner? region grid/southwest grid/south grid/west p)]
+       (filter true?)
+       count))
+
+(defn num-sides [region]
   (->> region
+       keys
        sort
-       (map (partial count-fences region))
+       (map (partial num-corners region))
        (reduce +)))
 
 (defn price [region]
-  (* (area region) (perimeter region)))
+  (* (area region) (num-sides region)))
 
 (defn run []
   (->> init-plots
