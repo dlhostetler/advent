@@ -9,7 +9,8 @@
         [_ prizex prizey] (re-matches #"Prize: X=(\d+), Y=(\d+)" prize)]
     {:a [(Integer/parseInt ax) (Integer/parseInt ay)]
      :b [(Integer/parseInt bx) (Integer/parseInt by)]
-     :prize [(Integer/parseInt prizex) (Integer/parseInt prizey)]}))
+     :prize [(+ 10000000000000 (Integer/parseInt prizex))
+             (+ 10000000000000 (Integer/parseInt prizey))]}))
 
 (def machines
   (map parse-machine (-> "resources/2024/day13.input"
@@ -26,10 +27,10 @@
         d2 (determinant prize b)]
     (when (and (zero? (mod d2 det-presses))
                (zero? (mod d1 det-presses)))
-      [(int (/ d2 det-presses)) (int (/ d1 det-presses))])))
+      [(long (/ d2 det-presses)) (long (/ d1 det-presses))])))
 
 (defn cost [[presses-a presses-b]]
-  (int (+ (* 3 presses-a) presses-b)))
+  (long (+ (* 3 presses-a) presses-b)))
 
 (defn run []
   (->> machines
