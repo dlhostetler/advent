@@ -25,6 +25,21 @@
       slurp
       (str/split #"\n\n")))
 
+(defn widen-tile [tiles [[x y] tile]]
+  (cond
+    (= tile "#")
+    (-> tiles
+        (assoc [(* x 2) y] "#")
+        (assoc [(inc (* x 2)) y] "#"))
+
+    (= tile "O")
+    (-> tiles
+        (assoc [(* x 2) y] "[")
+        (assoc [(inc (* x 2)) y] "]"))
+
+    :else
+    (assoc tiles [(* x 2) y] tile)))
+
 (def init-tiles
   (->> (-> input
            first
@@ -32,7 +47,7 @@
            grid/lines->grid)
        (map-vals str)
        (remove (comp (partial = ".") val))
-       (into {})))
+       (reduce widen-tile {})))
 
 (def moves
   (->> (str/replace (last input) #"\s+" "")
@@ -48,60 +63,118 @@
      :moves moves
      :tiles (dissoc init-tiles p)}))
 
-(defn find-space [tiles from dir-fn]
-  (let [next (dir-fn from)]
+(defn try-move-box-west [tiles [x y]]
+  (let [next-tile-at [(- x 2) y]]
     (cond
-      ;; box
-      (= (tiles next) "O")
-      (recur tiles next dir-fn)
+      ;; there's a space
+      (not (contains? tiles next-tile-at))
+      (-> tiles
+          (dissoc [x y] [(dec x) y])
+          (assoc [(dec x) y] "]" [(- x 2) y] "["))
 
-      ;; space
-      (not (contains? tiles next))
-      next
+      ;; there's a box
+      (= (tiles next-tile-at) "]")
+      (if-let [moved-tiles (try-move-box-west tiles next-tile-at)]
+        ;; could move that one, so move this one
+        (-> moved-tiles
+            (dissoc [x y] [(dec x) y])
+            (assoc [(dec x) y] "]" [(- x 2) y] "["))
+        ;; couldn't move
+        nil))))
 
-      ;; wall
-      :else
+(defn try-move-box-east [tiles [x y]]
+  (let [next-tile-at [(+ x 2) y]]
+    (cond
+      ;; there's a space
+      (not (contains? tiles next-tile-at))
+      (-> tiles
+          (dissoc [x y] [(inc x) y])
+          (assoc [(inc x) y] "[" [(+ x 2) y] "]"))
+
+      ;; there's a box
+      (= (tiles next-tile-at) "[")
+      (if-let [moved-tiles (try-move-box-east tiles next-tile-at)]
+        ;; could move that one, so move this one
+        (-> moved-tiles
+            (dissoc [x y] [(inc x) y])
+            (assoc [(inc x) y] "[" [(+ x 2) y] "]"))
+        ;; couldn't move
+        nil))))
+
+(declare try-move-box-vertical)
+
+(defn try-move-box-half-vertical [tiles [x y] tile inc-or-dec]
+  (let [next-tile-at [x (inc-or-dec y)]]
+    (cond
+      ;; there's a space
+      (not (contains? tiles next-tile-at))
+      (-> tiles (dissoc [x y]) (assoc next-tile-at tile))
+
+      ;; there's a box
+      (or (= (tiles next-tile-at) "[") (= (tiles next-tile-at) "]"))
+      (if-let [moved-tiles (try-move-box-vertical tiles next-tile-at inc-or-dec)]
+        ;; could move that one, so move this one
+        (-> moved-tiles (dissoc [x y]) (assoc next-tile-at tile))
+        ;; couldn't move
+        nil))))
+
+(defn try-move-box-vertical [tiles [x y] inc-or-dec]
+  (let [x0 (if (= (tiles [x y]) "[") x (dec x))
+        x1 (inc x0)]
+    (if-let [left-tiles-moved (try-move-box-half-vertical tiles [x0 y] "[" inc-or-dec)]
+      (try-move-box-half-vertical left-tiles-moved [x1 y] "]" inc-or-dec)
       nil)))
 
-(defn get-boxes [tiles from to dir-fn]
-  (loop [next (dir-fn from)
-         boxes []]
+(defn try-move-box [tiles box-at dir]
+  (let [tile (tiles box-at)]
     (cond
-      ;; at space
-      (= next to)
-      boxes
+      ;; west
+      (and (= dir :w) (= tile "]"))
+      (try-move-box-west tiles box-at)
 
-      ;; box
-      (= (tiles next) "O")
-      (recur (dir-fn next) (conj boxes next))
+      ;; east
+      (and (= dir :e) (= tile "["))
+      (try-move-box-east tiles box-at)
 
-      ;; somethine else
+      ;; north
+      (and (= dir :n) (or (= tile "[") (= tile "]")))
+      (try-move-box-vertical tiles box-at dec)
+
+      ;; south
+      (and (= dir :s) (or (= tile "[") (= tile "]")))
+      (try-move-box-vertical tiles box-at inc)
+
       :else
-      (throw (Exception. "trying to move get box, found something else")))))
-
-(defn move-boxes [tiles boxes dir-fn]
-  #_(println "moving boxes" boxes)
-  (let [without-boxes (apply dissoc tiles boxes)]
-    (merge without-boxes
-           (zipmap (map dir-fn boxes) (repeat "O")))))
-
-(defn move [{:keys [at tiles] :as state} to dir-fn]
-  (-> state
-      (update :tiles
-              move-boxes
-              (get-boxes tiles at to dir-fn)
-              dir-fn)
-      (update :at dir-fn)))
+      (do
+        (grid/print tiles)
+        (throw (Exception. (str "try-move-boxes, moving " dir " with " tile)))))))
 
 (defn try-move [{:keys [at moves tiles] :as state}]
   (let [next-dir (first moves)
         next-dir-fn (dir-to-fn next-dir)
-        space (find-space tiles at next-dir-fn)]
-    #_(println "trying to move" next-dir "found" space)
-    (-> (if space
-          (move state space next-dir-fn)
-          state)
-        (update :moves rest))))
+        next-at (next-dir-fn at)]
+    #_(println "trying to move" next-dir "to" next-at)
+    (cond
+      ;; space
+      (not (contains? tiles next-at))
+      (-> state
+          (assoc :at next-at)
+          (update :moves rest))
+
+      ;; box
+      (or (= (tiles next-at) "[") (= (tiles next-at) "]"))
+      (if-let [moved-tiles (try-move-box tiles next-at next-dir)]
+        ;; boxes-moved
+        (-> state
+            (assoc :tiles moved-tiles)
+            (assoc :at next-at)
+            (update :moves rest))
+        ;; couldn't move boxes
+        (update state :moves rest))
+
+      ;; can't move
+      :else
+      (update state :moves rest))))
 
 (defn print-state [{:keys [at tiles]}]
   (grid/print (assoc tiles at "@")))
@@ -119,7 +192,7 @@
   (->> init-state
        do-moves
        :tiles
-       (filter (comp (partial = "O") val))
+       (filter (comp (partial = "[") val))
        keys
        (map gps)
        (reduce +)))
