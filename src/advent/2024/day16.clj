@@ -1,5 +1,6 @@
 (ns advent.2024.day16
   (:require [advent.grid :as grid]
+            [clojure.set :as set]
             [plumbing.core :refer :all])
   (:import (java.util PriorityQueue)))
 
@@ -20,19 +21,24 @@
        first
        first))
 
+(defn visited-state [[path dir]]
+  [(last path) dir])
+
 (defn dijkstra
   [initial final? generate-moves]
   (let [to-visit (PriorityQueue. 100 compare)]
     (loop [[cost state] [0 initial]
-           visited #{}]
-      (when (not (visited state))
-        (doseq [[nxt-state nxt-cost] (generate-moves [state cost])]
-          (when (not (visited nxt-state))
-            (.add to-visit [nxt-cost nxt-state]))))
-      (if (final? state)
+           visited {}]
+      (if (or (nil? state) (final? state cost))
         cost
-        (recur (.poll to-visit)
-               (conj visited state))))))
+        (let [visited-cost (visited (visited-state state))]
+          (if (and visited-cost (< visited-cost cost))
+            (recur (.poll to-visit) visited)
+            (do
+              (doseq [[nxt-state nxt-cost] (generate-moves [state cost])]
+                (.add to-visit [nxt-cost nxt-state]))
+              (recur (.poll to-visit)
+                     (assoc visited (visited-state state) cost)))))))))
 
 (def next-positions
   {:n (fn [point]
@@ -52,15 +58,28 @@
          (conj (grid/north point) :n 1001)
          (conj (grid/west point) :w 1)])})
 
-(defn neighbors [[[x y dir] cost]]
-  (for [[x' y' dir' cost'] ((get next-positions dir) [x y])
+(defn neighbors [[[path dir] cost]]
+  (for [[x' y' dir' cost'] ((get next-positions dir) (last path))
         :when (grid/valid-point-or-nil tiles [x' y'])
         :when (not= (tiles [x' y']) "#")]
-    [[x' y' dir'] (+ cost cost')]))
+    [[(conj path [x' y']) dir'] (+ cost cost')]))
 
 (defn run []
-  (let [start [(first start) (last start) :e]]              ;; x y dir
+  (let [start [[start] :e]                                  ;; x y dir path
+        best-points (atom nil)
+        best-seats (atom #{})]
     (dijkstra start
-              (fn [[x y _]]
-                (= end [x y]))
-              neighbors)))
+              (fn [[path] points]
+                (when (= end (last path))
+                  (when (nil? @best-points)
+                    (println "best points" points)
+                    (reset! best-points points))
+                  (if (= points @best-points)
+                    (do
+                      (println "adding points")
+                      (swap! best-seats (fn [seats]
+                                          (apply conj seats path)))
+                      false)
+                    true)))
+              neighbors)
+    (count @best-seats)))
