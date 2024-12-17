@@ -41,29 +41,29 @@
 
 ;; adv
 (defmethod op 0 [state _ operand]
-  (println "adv" operand)
+  #_(println "adv" operand)
   (-> state
-      (set-register :A (int (/ (register-val state :A)
-                               (math/pow 2 (combo-operand state operand)))))
+      (set-register :A (long (/ (register-val state :A)
+                                (math/pow 2 (combo-operand state operand)))))
       jump2))
 
 ;; bxl
 (defmethod op 1 [state _ operand]
-  (println "bxl" operand)
+  #_(println "bxl" operand)
   (-> state
       (set-register :B (bit-xor (register-val state :B) operand))
       jump2))
 
 ;; bst
 (defmethod op 2 [state _ operand]
-  (println "bst" operand)
+  #_(println "bst" operand)
   (-> state
       (set-register :B (mod (combo-operand state operand) 8))
       jump2))
 
 ;; jnz
 (defmethod op 3 [state _ operand]
-  (println "jnz" operand)
+  #_(println "jnz" operand)
   (let [a (register-val state :A)]
     (if (zero? a)
       (jump2 state)
@@ -71,32 +71,32 @@
 
 ;; bxc
 (defmethod op 4 [state _ _]
-  (println "bxc")
+  #_(println "bxc")
   (-> state
       (set-register :B (bit-xor (register-val state :B) (register-val state :C)))
       jump2))
 
 ;; out
 (defmethod op 5 [state _ operand]
-  (println "out" operand)
+  #_(println "out" operand)
   (-> state
       (output (mod (combo-operand state operand) 8))
       jump2))
 
 ;; bdv
 (defmethod op 6 [state _ operand]
-  (println "bdv" operand)
+  #_(println "bdv" operand)
   (-> state
-      (set-register :B (int (/ (register-val state :A)
-                               (math/pow 2 (combo-operand state operand)))))
+      (set-register :B (long (/ (register-val state :A)
+                                (math/pow 2 (combo-operand state operand)))))
       jump2))
 
 ;; cdv
 (defmethod op 7 [state _ operand]
-  (println "cdv" operand)
+  #_(println "cdv" operand)
   (-> state
-      (set-register :C (int (/ (register-val state :A)
-                               (math/pow 2 (combo-operand state operand)))))
+      (set-register :C (long (/ (register-val state :A)
+                                (math/pow 2 (combo-operand state operand)))))
       jump2))
 
 (defn run-program [{:keys [instruction] :as state} program]
@@ -105,8 +105,16 @@
            program)
     state))
 
+(defn find-a [program target]
+  (loop [a (if (= (count target) 1)
+             0
+             (* 8 (find-a program (vec (rest target)))))]
+    (let [next-state (run-program {:A a :B 0 :C 0 :instruction 0 :output []}
+                                  program)]
+      (if (= target (:output next-state))
+        a
+        (recur (inc a))))))
+
 (defn run []
-  (->> (run-program {:A 66752888 :B 0 :C 0 :instruction 0 :output []}
-                    [2,4,1,7,7,5,1,7,0,3,4,1,5,5,3,0])
-       :output
-       (str/join ",")))
+  (let [program [2, 4, 1, 7, 7, 5, 1, 7, 0, 3, 4, 1, 5, 5, 3, 0]]
+    (find-a program program)))
