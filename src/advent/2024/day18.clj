@@ -28,17 +28,18 @@
 (defn in-bounds? [[x y]]
   (and (<= 0 x max-x) (<= 0 y max-y)))
 
-(defn neighbors [memory p]
+(defn neighbors [p]
   (->> [(grid/north p)
         (grid/east p)
         (grid/south p)
         (grid/west p)]
-       (filter in-bounds?)
-       (remove memory)))
+       (filter in-bounds?)))
 
 (defn run []
-  (let [memory (zipmap (set (take 1024 input)) (repeat "#"))
-        edges (zipmap space-points
-                      (map (partial neighbors memory) space-points))
-        graph (graph/digraph edges)]
-    (dec (count (graph.alg/bf-path graph [0 0] [max-x max-y])))))
+  (loop [graph (graph/digraph (zipmap space-points (map neighbors space-points)))
+         bytes input]
+    (let [byte (first bytes)
+          next-graph (graph/remove-nodes graph byte)]
+      (if (graph.alg/bf-path next-graph [0 0] [max-x max-y])
+        (recur next-graph (rest bytes))
+        byte))))
