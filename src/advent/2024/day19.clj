@@ -40,4 +40,4 @@
   (->> patterns
        (map (partial find-towels 0))
        (remove zero?)
-       count))
+       (reduce +)))
