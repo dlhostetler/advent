@@ -1,5 +1,6 @@
 (ns advent.2024.day20
   (:require [advent.grid :as grid]
+            [clojure.math.combinatorics :as combo]
             [loom.alg :as graph.alg]
             [loom.graph :as graph]
             [plumbing.core :refer :all]))
@@ -30,48 +31,32 @@
                          :when (not= (get racetrack neighbor) "#")]
                      neighbor))])))
 
-(defn track? [p]
-  (when-let [p (grid/valid-point-or-nil racetrack p)]
-    (not= "#" (racetrack p))))
+(defn calc-distances [path]
+  (loop [n 0
+         path path
+         distances {}]
+    (if (empty? path)
+      distances
+      (recur (inc n)
+             (rest path)
+             (assoc distances (first path) n)))))
 
-(defn cheat-passthrough [track0 wall track1]
-  (when (and (track? track0) (track? track1))
-    [[track0 wall] [wall track1]]))
+(defn manhattan [[x0 y0] [x1 y1]]
+  (int (+ (Math/abs (- x0 x1)) (Math/abs (- y0 y1)))))
 
-(defn cheat-edges [wall]
-  (->> [(cheat-passthrough (grid/west wall) wall (grid/east wall))
-        (cheat-passthrough (grid/east wall) wall (grid/west wall))
-        (cheat-passthrough (grid/north wall) wall (grid/south wall))
-        (cheat-passthrough (grid/south wall) wall (grid/north wall))]
-       (remove nil?)))
+(defn cheat? [[from to]]
+  (let [d (manhattan from to)]
+    (<= d 20)))
 
-(defn potential-cheats []
-  (->> racetrack
-       (filter (comp (partial = "#") val))
-       (map first)
-       (map cheat-edges)
-       (remove empty?)
-       (apply concat)))
-
-(defn cheat [graph [from-edge to-edge :as passthrough]]
-  (graph/add-edges graph from-edge to-edge))
-
-(defn race-time [graph]
-  (dec (count (graph.alg/bf-path graph start end))))
-
-(defn cheating-race-time [graph passthrough]
-  (let [t (race-time (cheat graph passthrough))]
-    {:cheat passthrough
-     :time t}))
-
-(defn saved-time [normal-time {:keys [time]}]
-  (- normal-time time))
+(defn savings [distances [from to]]
+  (- (- (distances to) (distances from)) (manhattan from to)))
 
 (defn run []
   (let [graph (graph/digraph (initial-edges))
-        normal-time (race-time graph)]
-    (->> (potential-cheats)
-         (pmap #(cheating-race-time graph %))
-         (map #(saved-time normal-time %))
+        normal-path (graph.alg/bf-path graph start end)
+        distances (calc-distances normal-path)]
+    (->> (combo/combinations normal-path 2)
+         (filter cheat?)
+         (map (partial savings distances))
          (filter #(>= % 100))
          count)))
