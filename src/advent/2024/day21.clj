@@ -40,31 +40,6 @@
 (def numeric-keypad-graph
   (apply graph/digraph (keys numeric-edges)))
 
-(defn numeric-path-part [[from to]]
-  (graph.alg/bf-paths-bi (graph/successors numeric-keypad-graph)
-                         (graph/predecessors numeric-keypad-graph)
-                         from
-                         to))
-
-(defn numeric-path [code]
-  (->> (concat ["A"] code)
-       (partition 2 1)
-       (map numeric-path-part)))
-
-(defn numeric-path->numeric-directions [path]
-  (-> (->> path
-           (partition 2 1)
-           (map vec)
-           (mapv numeric-edges))
-      (conj "A")))
-
-(defn numeric-paths->numeric-directions [paths]
-  (map numeric-path->numeric-directions paths))
-
-(defn numeric-permutations [code]
-  (->> (numeric-path code)
-       (map numeric-paths->numeric-directions)))
-
 ;    +---+---+
 ;    | ^ | A |
 ;+---+---+---+
@@ -80,40 +55,46 @@
 (def directional-keypad-graph
   (apply graph/digraph (keys directional-edges)))
 
-(defn directional-path-part [[from to]]
-  (graph.alg/bf-path (graph/successors directional-keypad-graph)
-                     from
-                     to))
+(defn path-part [graph [from to]]
+  (if (= from to)
+    [nil]
+    (graph.alg/bf-paths-bi (graph/successors graph)
+                           (graph/predecessors graph)
+                           from
+                           to)))
 
-(defn directional-path [directions]
-  (->> (concat ["A"] directions)
+(defn path [graph code]
+  (->> (concat ["A"] code)
        (partition 2 1)
-       (map directional-path-part)))
+       (map (partial path-part graph))))
 
-(defn directional-path->directional-directions [path]
+(defn path->directions [edges path]
   (-> (->> path
            (partition 2 1)
            (map vec)
-           (mapv directional-edges))
+           (mapv edges))
       (conj "A")))
 
-(defn directional-directions [directions]
-  (->> (directional-path directions)
-       (map directional-path->directional-directions)
-       (apply concat)))
+(defn paths->directions [edges paths]
+  (map (partial path->directions edges) paths))
 
-(defn shortest-sequence-dirs [directions]
-  (->> directions
-       directional-directions
-       directional-directions
-       count))
+(defn path-permutations [graph edges code]
+  (->> (path graph code)
+       (map (partial paths->directions edges))))
 
-(defn shortest-sequence [permutations-seq]
-  (->> permutations-seq
-       (map (fn [permutations] (->> permutations
-                                    (map shortest-sequence-dirs)
-                                    (reduce min))))
+(defn shortest-sequence [graph edges robot code]
+  (->> (for [part-permutations (path-permutations graph edges code)]
+         (if (zero? robot)
+           (count (first part-permutations))
+           (->> (for [permutation part-permutations]
+                  (shortest-sequence directional-keypad-graph
+                                     directional-edges
+                                     (dec robot)
+                                     permutation))
+                (reduce min))))
        (reduce +)))
+
+(alter-var-root #'shortest-sequence memoize)
 
 (defn complexity [code shortest-seq]
   (* (Integer/parseInt (apply str (butlast code)))
@@ -121,7 +102,9 @@
 
 (defn run []
   (->> codes
-       (map numeric-permutations)
-       (map shortest-sequence)
+       (map (partial shortest-sequence
+                     numeric-keypad-graph
+                     numeric-edges
+                     25))
        (map complexity codes)
        (reduce +)))
