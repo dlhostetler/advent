@@ -1,6 +1,9 @@
 (ns advent.2024.day24
   (:require [clojure.java.io :as io]
             [clojure.string :as str]
+            [loom.attr :as graph.attr]
+            [loom.graph :as graph]
+            [loom.io :as graph.io]
             [plumbing.core :refer :all]))
 
 (def input
@@ -78,13 +81,38 @@
       :else
       (recur next-state))))
 
-(defn output [wires]
-  (->> all-zs
-       (map wires)
-       (apply str)
-       (#(Long/parseLong % 2))))
+(defn to-n [wires ks]
+  (->> ks (map wires) (apply str) (#(Long/parseLong % 2))))
+
+(defn describe [wires]
+  (let [x (to-n wires (->> wires
+                           keys
+                           (filter #(str/starts-with? % "x"))
+                           sort
+                           reverse))
+        y (to-n wires (->> wires
+                           keys
+                           (filter #(str/starts-with? % "y"))
+                           sort
+                           reverse))
+        z (to-n wires all-zs)]
+    (if (= (+ x y) z)
+      (println "done")
+      (do
+        (println "right" (Long/toBinaryString (+ x y)))
+        (println "wrong" (Long/toBinaryString z))))))
+
+(defn into-graph [wires graph [op in0 in1 out]]
+  (-> graph
+      (graph/add-nodes out)
+      (graph/add-edges [in0 out] [in1 out])
+      (graph.attr/add-attr out :label (str (name op) " -> " out "=" (wires out)))
+      (graph.attr/add-attr-to-edges :label (wires in0) [[in0 out]])
+      (graph.attr/add-attr-to-edges :label (wires in1) [[in1 out]])))
 
 (defn run []
-  (-> {:gates gates :wires init-wires}
-      wait-for-zs
-      output))
+  (let [wires (wait-for-zs {:gates gates :wires init-wires})]
+    (describe wires)
+    (->> gates
+         (reduce (partial into-graph wires) (graph/digraph))
+         (#(graph.io/view % :fmt :svg)))))
